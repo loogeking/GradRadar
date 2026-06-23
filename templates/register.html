@@ -43,15 +43,14 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const password2 = document.getElementById('password2').value;
-    const errorMsg = document.getElementById('error-msg');
 
     try {
         await apiRequest('/api/user/register/', {
             method: 'POST',
             body: JSON.stringify({ username, email, password, password2 })
         });
-        alert('注册成功！');
-        window.location.href = '/';
+        showToast('注册成功，正在跳转...', 'success');
+        setTimeout(() => window.location.href = '/', 1200);
     } catch (error) {
         const errors = error.data || {};
         const msgs = [];
@@ -59,8 +58,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
             const v = errors[k];
             msgs.push(`${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
         });
-        errorMsg.textContent = msgs.join(' | ') || '注册失败';
-        errorMsg.classList.remove('hidden');
+        showToast(msgs.join(' | ') || '注册失败', 'error');
     }
 });
 </script>

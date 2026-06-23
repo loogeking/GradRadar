@@ -20,6 +20,13 @@ class Major(models.Model):
     degree_type = models.CharField('学位类型', max_length=20, choices=DEGREE_CHOICES, default='academic')
     research_direction = models.TextField('研究方向', blank=True)
     exam_subjects = models.TextField('考试科目', blank=True, help_text='初试科目，逗号分隔')
+    subject_category = models.ForeignKey(
+        'subjects.SubjectCategory',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='majors',
+        verbose_name='学科目录'
+    )
 
     class Meta:
         verbose_name = '专业'

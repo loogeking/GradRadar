@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'apps.notices',
     'apps.users',
     'apps.frontend',
+    'apps.subjects',
 ]
 
 MIDDLEWARE = [

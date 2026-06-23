@@ -1,0 +1,62 @@
+[
+  {
+    "code": "0812",
+    "name": "计算机科学与技术",
+    "category": "工学",
+    "level": "first"
+  },
+  {
+    "code": "0835",
+    "name": "软件工程",
+    "category": "工学",
+    "level": "first"
+  },
+  {
+    "code": "0839",
+    "name": "网络空间安全",
+    "category": "工学",
+    "level": "first"
+  },
+  {
+    "code": "0810",
+    "name": "信息与通信工程",
+    "category": "工学",
+    "level": "first"
+  },
+  {
+    "code": "0811",
+    "name": "控制科学与工程",
+    "category": "工学",
+    "level": "first"
+  },
+  {
+    "code": "0809",
+    "name": "电子科学与技术",
+    "category": "工学",
+    "level": "first"
+  },
+  {
+    "code": "0701",
+    "name": "数学",
+    "category": "理学",
+    "level": "first"
+  },
+  {
+    "code": "0714",
+    "name": "统计学",
+    "category": "理学",
+    "level": "first"
+  },
+  {
+    "code": "0854",
+    "name": "电子信息",
+    "category": "工学",
+    "level": "professional"
+  },
+  {
+    "code": "0852",
+    "name": "工程",
+    "category": "工学",
+    "level": "professional"
+  }
+]

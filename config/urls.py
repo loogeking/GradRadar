@@ -9,6 +9,7 @@ urlpatterns = [
     path('api/', include('apps.majors.urls')),
     path('api/', include('apps.tutors.urls')),
     path('api/', include('apps.notices.urls')),
+    path('api/', include('apps.subjects.urls')),
     path('api/user/', include('apps.users.urls')),
     path('api-auth/', include('rest_framework.urls')),
 

@@ -73,8 +73,60 @@ def import_schools():
             print(f'  - 已存在: {obj.name}')
     print(f'院校导入完成，新增 {created_count} 条，共 {School.objects.count()} 条\n')
 
+def import_subjects():
+    """导入学科目录"""
+    from apps.subjects.models import SubjectCategory
+    print('=== 开始导入学科目录 ===')
+    data = load_json('subjects.json')
+    created_count = 0
+    for item in data:
+        obj, created = SubjectCategory.objects.get_or_create(
+            code=item['code'],
+            defaults={
+                'name': item['name'],
+                'category': item.get('category', ''),
+                'level': item.get('level', 'first'),
+            }
+        )
+        if created:
+            created_count += 1
+            print(f'  ✓ 新增: {obj.code} {obj.name}')
+        else:
+            print(f'  - 已存在: {obj.code} {obj.name}')
+    print(f'学科目录导入完成，新增 {created_count} 条\n')
 
+
+def import_subject_ratings():
+    """导入学科评级"""
+    from apps.subjects.models import SubjectCategory, SubjectRating
+    from apps.schools.models import School
+    print('=== 开始导入学科评级 ===')
+    data = load_json('subject_ratings.json')
+    created_count = 0
+    for item in data:
+        try:
+            school = School.objects.get(code=item['school_code'])
+            subject = SubjectCategory.objects.get(code=item['subject_code'])
+        except (School.DoesNotExist, SubjectCategory.DoesNotExist) as e:
+            print(f'  ✗ 跳过：{e}')
+            continue
+
+        obj, created = SubjectRating.objects.get_or_create(
+            school=school,
+            subject=subject,
+            evaluation_round=item['round'],
+            defaults={'rating': item['rating']}
+        )
+        if created:
+            created_count += 1
+            print(f'  ✓ 新增: {school.name} - {subject.name} - {item["rating"]}')
+    print(f'学科评级导入完成，新增 {created_count} 条\n')
+
+
+# 修改 __main__ 部分
 if __name__ == '__main__':
     import_provinces()
     import_schools()
+    import_subjects()
+    import_subject_ratings()
     print('=== 所有种子数据导入完成 ===')

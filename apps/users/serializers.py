@@ -36,13 +36,23 @@ class UserSerializer(serializers.ModelSerializer):
 class FavoriteSerializer(serializers.ModelSerializer):
     school_name = serializers.CharField(source='school.name', read_only=True, default=None)
     major_name = serializers.CharField(source='major.name', read_only=True, default=None)
+    major_code = serializers.CharField(source='major.code', read_only=True, default=None)
+    major_college_name = serializers.CharField(source='major.college.name', read_only=True, default=None)
+    major_school_name = serializers.CharField(source='major.college.school.name', read_only=True, default=None)
+    major_full_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Favorite
         fields = [
             'id', 'target_type',
             'school', 'school_name',
-            'major', 'major_name',
+            'major', 'major_name', 'major_code',
+            'major_college_name', 'major_school_name', 'major_full_name',
             'note', 'created_at'
         ]
         read_only_fields = ['created_at']
+
+    def get_major_full_name(self, obj):
+        if obj.major:
+            return f'{obj.major.college.school.name} - {obj.major.college.name} - {obj.major.name}'
+        return None

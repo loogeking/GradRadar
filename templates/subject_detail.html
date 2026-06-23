@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}学科详情 - GradRadar{% endblock %}
+
+{% block content %}
+
+<div id="subject-detail">
+    <div class="loading">加载中...</div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const subjectId = {{ subject_id }};
+
+async function loadSubject() {
+    try {
+        const data = await apiRequest(`/api/subjects/${subjectId}/`);
+        render(data);
+    } catch (error) {
+        document.getElementById('subject-detail').innerHTML = '<div class="loading">加载失败</div>';
+    }
+}
+
+function getRatingClass(rating) {
+    const map = {
+        'A+': 'bg-red-100 text-red-700 border-red-300',
+        'A': 'bg-red-50 text-red-600 border-red-200',
+        'A-': 'bg-orange-100 text-orange-700 border-orange-300',
+        'B+': 'bg-yellow-100 text-yellow-700 border-yellow-300',
+        'B': 'bg-yellow-50 text-yellow-600 border-yellow-200',
+        'B-': 'bg-green-100 text-green-700 border-green-300',
+        'C+': 'bg-blue-100 text-blue-700 border-blue-300',
+        'C': 'bg-blue-50 text-blue-600 border-blue-200',
+        'C-': 'bg-gray-100 text-gray-700 border-gray-300',
+    };
+    return map[rating] || 'bg-gray-100 text-gray-700 border-gray-300';
+}
+
+function render(s) {
+    const levelMap = {first: '一级学科', second: '二级学科', professional: '专业学位'};
+    const ratings = s.ratings || [];
+    const majorsByschool = s.majors_by_school || [];
+
+    // ===== 评级区 =====
+    const groups = {};
+    ratings.forEach(r => {
+        if (!groups[r.rating]) groups[r.rating] = [];
+        groups[r.rating].push(r);
+    });
+    const ratingOrder = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-'];
+
+    let ratingsHtml = '';
+    if (ratings.length === 0) {
+        ratingsHtml = '<div class="loading">暂无评级数据</div>';
+    } else {
+        ratingsHtml = ratingOrder.filter(r => groups[r]).map(r => `
+            <div class="mb-6">
+                <div class="flex items-center mb-3">
+                    <span class="inline-block px-3 py-1 rounded border font-bold ${getRatingClass(r)}">${r}</span>
+                    <span class="ml-2 text-sm text-gray-500">${groups[r].length} 所院校</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    ${groups[r].map(item => `
+                        <a href="/schools/${item.school_id}/" class="block bg-white p-3 rounded border hover:shadow-md transition">
+                            <div class="font-medium text-gray-800">${item.school_name}</div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                ${item.school_province}
+                                ${item.school_is_985 ? '<span class="ml-1 tag-985 px-1 rounded">985</span>' : ''}
+                                ${item.school_is_211 ? '<span class="ml-1 tag-211 px-1 rounded">211</span>' : ''}
+                            </div>
+                        </a>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // ===== 招生专业区 =====
+    let majorsHtml = '';
+    if (majorsByschool.length === 0) {
+        majorsHtml = '<div class="loading">暂无招生专业数据<br><span class="text-xs text-gray-400">（学科评级与招生专业是两套数据，部分学校只录入了评级）</span></div>';
+    } else {
+        majorsHtml = majorsByschool.map(school => `
+            <div class="border rounded-lg p-4 mb-3 bg-white">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b">
+                    <a href="/schools/${school.school_id}/" class="font-semibold text-gray-800 hover:text-blue-600">
+                        ${school.school_name}
+                    </a>
+                    <div class="flex items-center space-x-2 text-xs">
+                        <span class="text-gray-500">${school.school_province}</span>
+                        ${school.school_is_985 ? '<span class="tag-985 px-1 rounded">985</span>' : ''}
+                        ${school.school_is_211 ? '<span class="tag-211 px-1 rounded">211</span>' : ''}
+                        ${school.rating ? `<span class="px-2 py-0.5 rounded border font-bold ${getRatingClass(school.rating)}">${school.rating}</span>` : ''}
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    ${school.majors.map(m => `
+                        <a href="/majors/${m.major_id}/" class="block p-2 hover:bg-gray-50 rounded text-sm">
+                            <span class="text-blue-600 hover:underline">${m.major_name}</span>
+                            <span class="text-gray-400 ml-1">(${m.major_code})</span>
+                            <span class="ml-2 px-1.5 py-0.5 text-xs bg-gray-100 rounded">${m.degree_type_display}</span>
+                            <span class="text-xs text-gray-500 ml-2">${m.college_name}</span>
+                        </a>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('subject-detail').innerHTML = `
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div class="flex items-start justify-between flex-wrap">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">${s.name}</h1>
+                    <div class="flex items-center space-x-3 text-gray-600">
+                        <span>学科代码：<strong>${s.code}</strong></span>
+                        <span>门类：${s.category || '-'}</span>
+                        <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">${levelMap[s.level] || s.level}</span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-3xl font-bold text-blue-600">${ratings.length}</div>
+                    <div class="text-sm text-gray-500">所院校有评级</div>
+                </div>
+            </div>
+            ${s.description ? `<p class="mt-4 text-gray-700">${s.description}</p>` : ''}
+        </div>
+
+        <!-- 提示卡片 -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-gray-700">
+            <strong>💡 数据说明：</strong>
+            "学科评级" 是教育部对各校学科实力的官方评估；
+            "招生专业" 是该学科下各院校具体招生的硕士专业，含复试线和招生计划。
+            两者是独立的数据维度。
+        </div>
+
+        <!-- 学科评级 -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                🏆 学科评级
+                <span class="text-sm text-gray-500 font-normal ml-2">（第四轮学科评估）</span>
+            </h2>
+            ${ratingsHtml}
+        </div>
+
+        <!-- 招生专业 -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                📚 招生专业
+                <span class="text-sm text-gray-500 font-normal ml-2">（点击查看复试线和招生计划）</span>
+            </h2>
+            ${majorsHtml}
+        </div>
+    `;
+}
+
+loadSubject();
+</script>
+{% endblock %}

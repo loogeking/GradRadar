@@ -9,16 +9,21 @@
     <p class="text-gray-600">最多可同时对比5个专业的复试线和招生情况</p>
 </div>
 
-<!-- 添加专业 -->
+<!-- 添加方式：搜索 + 从收藏选 -->
 <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-    <div class="flex gap-2">
-        <input type="text" id="major-search" placeholder="输入专业名称或学校名称搜索..."
-               class="flex-1 px-3 py-2 border rounded outline-none focus:ring-2 focus:ring-blue-500">
+    <div class="flex gap-3 items-center">
+        <div class="flex-1 relative">
+            <input type="text" id="major-search" placeholder="🔍 搜索专业名称或学校..."
+                   class="w-full px-3 py-2 border rounded outline-none focus:ring-2 focus:ring-blue-500">
+            <div id="search-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow max-h-60 overflow-y-auto z-10"></div>
+        </div>
+        <button id="from-favorites-btn" class="px-4 py-2 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 whitespace-nowrap">
+            ⭐ 从收藏选择
+        </button>
     </div>
-    <div id="search-suggestions" class="mt-2 hidden bg-white border rounded shadow max-h-60 overflow-y-auto"></div>
 </div>
 
-<!-- 已选专业 -->
+<!-- 已选 -->
 <div class="mb-6">
     <h2 class="text-lg font-semibold mb-2">已选专业 (<span id="selected-count">0</span>/5)</h2>
     <div id="selected-list" class="flex flex-wrap gap-2">
@@ -27,17 +32,39 @@
     <button id="compare-btn" disabled class="mt-3 px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed">
         开始对比
     </button>
+    <button id="clear-btn" class="mt-3 ml-2 px-4 py-2 text-gray-600 hover:text-gray-800">清空</button>
 </div>
 
-<!-- 对比结果 -->
 <div id="compare-result"></div>
+
+<!-- 从收藏选择的弹窗 -->
+<div id="favorites-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col">
+        <div class="px-6 py-4 border-b flex justify-between items-center">
+            <h3 class="text-lg font-bold">从收藏中选择专业</h3>
+            <button id="close-fav-modal" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+        </div>
+        <div class="px-6 py-4 flex-1 overflow-y-auto">
+            <div id="fav-major-list" class="space-y-2">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+        <div class="px-6 py-3 border-t bg-gray-50 flex justify-end space-x-2">
+            <button id="cancel-fav-btn" class="px-4 py-2 border rounded hover:bg-gray-100">取消</button>
+            <button id="add-fav-btn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">添加所选 (<span id="fav-selected-count">0</span>)</button>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
 let selectedMajors = [];
+let favoriteMajors = [];  // 用户的收藏列表
+let favSelectedIds = new Set();  // 弹窗中临时选中的
 
+// ==================== 搜索添加 ====================
 async function searchMajors(keyword) {
     if (!keyword.trim()) {
         document.getElementById('search-suggestions').classList.add('hidden');
@@ -49,26 +76,27 @@ async function searchMajors(keyword) {
         if (data.results.length === 0) {
             container.innerHTML = '<div class="p-3 text-gray-400">无匹配结果</div>';
         } else {
-            container.innerHTML = data.results.map(m => `
-                <div class="p-3 hover:bg-gray-100 cursor-pointer" onclick="addMajor(${m.id}, '${m.school_name} - ${m.name}')">
-                    <div class="font-medium">${m.name} <span class="text-gray-400 text-sm">(${m.code})</span></div>
-                    <div class="text-sm text-gray-500">${m.school_name} · ${m.college_name}</div>
-                </div>
-            `).join('');
+            container.innerHTML = data.results.map(m => {
+                const fullName = m.full_name || `${m.school_name} - ${m.college_name} - ${m.name}`;
+                return `
+                    <div class="p-3 hover:bg-gray-100 cursor-pointer" onclick='addMajor(${m.id}, ${JSON.stringify(fullName)})'>
+                        <div class="text-xs text-gray-500">${m.school_name} · ${m.college_name}</div>
+                        <div class="font-medium">${m.name} <span class="text-gray-400 text-sm">(${m.code})</span></div>
+                    </div>
+                `;
+            }).join('');
         }
         container.classList.remove('hidden');
-    } catch (error) {
-        console.error(error);
-    }
+    } catch (e) { console.error(e); }
 }
 
 function addMajor(id, name) {
     if (selectedMajors.find(m => m.id === id)) {
-        alert('已添加');
+        showToast('已添加过该专业', 'warning');
         return;
     }
     if (selectedMajors.length >= 5) {
-        alert('最多对比5个专业');
+        showToast('最多对比5个专业', 'warning');
         return;
     }
     selectedMajors.push({ id, name });
@@ -89,34 +117,111 @@ function renderSelected() {
         list.innerHTML = '<span class="text-gray-400">尚未选择专业</span>';
     } else {
         list.innerHTML = selectedMajors.map(m => `
-            <span class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded">
-                ${m.name}
-                <button onclick="removeMajor(${m.id})" class="ml-2 text-blue-500 hover:text-blue-800">×</button>
+            <span class="inline-flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded text-sm">
+                <span class="max-w-xs truncate" title="${m.name}">${m.name}</span>
+                <button onclick="removeMajor(${m.id})" class="ml-2 text-blue-500 hover:text-blue-800 font-bold">×</button>
             </span>
         `).join('');
     }
     document.getElementById('compare-btn').disabled = selectedMajors.length < 2;
 }
 
+// ==================== 从收藏选择 ====================
+async function openFavoritesModal() {
+    document.getElementById('favorites-modal').classList.remove('hidden');
+    favSelectedIds.clear();
+    updateFavSelectedCount();
+    try {
+        const data = await apiRequest('/api/user/favorites/?page_size=200');
+        favoriteMajors = (data.results || []).filter(f => f.target_type === 'major');
+        renderFavMajorList();
+    } catch (error) {
+        if (error.status === 403 || error.status === 401) {
+            document.getElementById('fav-major-list').innerHTML =
+                '<div class="text-center py-6"><p class="text-gray-500 mb-3">需要登录才能查看收藏</p>' +
+                '<a href="/login/" class="px-4 py-2 bg-blue-600 text-white rounded">去登录</a></div>';
+        } else {
+            document.getElementById('fav-major-list').innerHTML = '<div class="loading">加载失败</div>';
+        }
+    }
+}
+
+function renderFavMajorList() {
+    const container = document.getElementById('fav-major-list');
+    if (favoriteMajors.length === 0) {
+        container.innerHTML = '<div class="text-center py-6 text-gray-500">还没有收藏的专业<br><a href="/subjects/" class="text-blue-600 hover:underline">去浏览</a></div>';
+        return;
+    }
+    container.innerHTML = favoriteMajors.map(f => {
+        const isAlreadyAdded = selectedMajors.find(m => m.id === f.major);
+        const fullName = f.major_full_name || f.major_name;
+        return `
+            <label class="flex items-start p-3 border rounded hover:bg-gray-50 cursor-pointer ${isAlreadyAdded ? 'opacity-50' : ''}">
+                <input type="checkbox" class="fav-checkbox mr-3 mt-1" value="${f.major}"
+                       data-name="${fullName}" ${isAlreadyAdded ? 'disabled' : ''}>
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs text-gray-500">${f.major_school_name} · ${f.major_college_name}</div>
+                    <div class="font-medium">${f.major_name} <span class="text-gray-400 text-sm">(${f.major_code})</span></div>
+                    ${isAlreadyAdded ? '<div class="text-xs text-gray-400 mt-1">已在对比列表中</div>' : ''}
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    container.querySelectorAll('.fav-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+            if (cb.checked) {
+                if (favSelectedIds.size + selectedMajors.length >= 5) {
+                    cb.checked = false;
+                    showToast('最多对比5个专业', 'warning');
+                    return;
+                }
+                favSelectedIds.add({ id: parseInt(cb.value), name: cb.dataset.name });
+            } else {
+                favSelectedIds.forEach(item => {
+                    if (item.id === parseInt(cb.value)) favSelectedIds.delete(item);
+                });
+            }
+            updateFavSelectedCount();
+        });
+    });
+}
+
+function updateFavSelectedCount() {
+    document.getElementById('fav-selected-count').textContent = favSelectedIds.size;
+}
+
+function closeFavModal() {
+    document.getElementById('favorites-modal').classList.add('hidden');
+}
+
+function addFromFavorites() {
+    favSelectedIds.forEach(item => {
+        if (!selectedMajors.find(m => m.id === item.id)) {
+            selectedMajors.push(item);
+        }
+    });
+    renderSelected();
+    closeFavModal();
+    showToast(`已添加 ${favSelectedIds.size} 个专业`, 'success');
+}
+
+// ==================== 对比 ====================
 async function doCompare() {
     const ids = selectedMajors.map(m => m.id).join(',');
     try {
         const data = await apiRequest(`/api/compare/?ids=${ids}`);
         renderCompareResult(data.results);
     } catch (error) {
-        alert('对比失败');
+        showToast(error.data?.error || '对比失败', 'error');
     }
 }
 
 function renderCompareResult(majors) {
-    // 收集所有年份
     const allYears = new Set();
-    majors.forEach(m => {
-        (m.score_lines || []).forEach(s => allYears.add(s.year));
-    });
+    majors.forEach(m => (m.score_lines || []).forEach(s => allYears.add(s.year)));
     const years = Array.from(allYears).sort();
 
-    // 复试线对比图
     const scoreSeries = majors.map(m => ({
         name: `${m.school_name}-${m.name}`,
         type: 'line',
@@ -177,16 +282,23 @@ function renderCompareResult(majors) {
     }, 100);
 }
 
-// 事件绑定
+// ==================== 事件绑定 ====================
 let timer;
 document.getElementById('major-search').addEventListener('input', (e) => {
     clearTimeout(timer);
     timer = setTimeout(() => searchMajors(e.target.value), 300);
 });
-
 document.getElementById('compare-btn').addEventListener('click', doCompare);
+document.getElementById('clear-btn').addEventListener('click', () => {
+    selectedMajors = [];
+    renderSelected();
+    document.getElementById('compare-result').innerHTML = '';
+});
+document.getElementById('from-favorites-btn').addEventListener('click', openFavoritesModal);
+document.getElementById('close-fav-modal').addEventListener('click', closeFavModal);
+document.getElementById('cancel-fav-btn').addEventListener('click', closeFavModal);
+document.getElementById('add-fav-btn').addEventListener('click', addFromFavorites);
 
-// 点击页面其他地方关闭建议
 document.addEventListener('click', (e) => {
     if (!e.target.closest('#major-search') && !e.target.closest('#search-suggestions')) {
         document.getElementById('search-suggestions').classList.add('hidden');

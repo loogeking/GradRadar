@@ -131,14 +131,18 @@ async function addFavorite(type, id) {
             method: 'POST',
             body: JSON.stringify(payload)
         });
-        alert('收藏成功！');
+        showToast('收藏成功', 'success');
     } catch (error) {
         if (error.status === 403 || error.status === 401) {
-            if (confirm('需要登录才能收藏，是否跳转登录？')) {
-                window.location.href = '/login/';
-            }
+            showModal({
+                title: '需要登录',
+                content: '收藏功能需要登录，是否跳转到登录页？',
+                confirmText: '去登录',
+                onConfirm: () => window.location.href = '/login/'
+            });
         } else {
-            alert('收藏失败：' + JSON.stringify(error.data || {}));
+            const msg = error.data?.non_field_errors?.[0] || error.data?.detail || '收藏失败';
+            showToast(msg, 'error');
         }
     }
 }

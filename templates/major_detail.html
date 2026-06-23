@@ -131,6 +131,7 @@ function renderMajor() {
             </div>
             ${m.research_direction ? `<div class="mt-4"><strong>研究方向：</strong>${m.research_direction}</div>` : ''}
             ${m.exam_subjects ? `<div class="mt-2"><strong>考试科目：</strong>${m.exam_subjects}</div>` : ''}
+            ${m.subject_info ? renderSubjectInfo(m.subject_info) : ''}
         </div>
 
         <!-- 复试线 -->
@@ -172,6 +173,44 @@ function renderMajor() {
     document.getElementById('favorite-btn').addEventListener('click', addFavorite);
 }
 
+function renderSubjectInfo(info) {
+    const ratingHtml = info.rating
+        ? `<span class="inline-block px-3 py-1 rounded border font-bold ${getRatingClassForMajor(info.rating)}">${info.rating}</span>
+           <span class="text-sm text-gray-500 ml-2">${info.rating_round_display}</span>`
+        : '<span class="text-gray-400 text-sm">本校在该学科暂无评级数据</span>';
+
+    return `
+        <div class="mt-4 pt-4 border-t">
+            <div class="flex items-center flex-wrap gap-2">
+                <strong>所属学科：</strong>
+                <a href="/subjects/${info.subject_id}/" class="text-blue-600 hover:underline">
+                    ${info.subject_name} (${info.subject_code})
+                </a>
+                <span class="text-sm text-gray-500">${info.subject_category}</span>
+            </div>
+            <div class="mt-2 flex items-center gap-2">
+                <strong>本校学科评级：</strong>
+                ${ratingHtml}
+            </div>
+        </div>
+    `;
+}
+
+function getRatingClassForMajor(rating) {
+    const map = {
+        'A+': 'bg-red-100 text-red-700 border-red-300',
+        'A': 'bg-red-50 text-red-600 border-red-200',
+        'A-': 'bg-orange-100 text-orange-700 border-orange-300',
+        'B+': 'bg-yellow-100 text-yellow-700 border-yellow-300',
+        'B': 'bg-yellow-50 text-yellow-600 border-yellow-200',
+        'B-': 'bg-green-100 text-green-700 border-green-300',
+        'C+': 'bg-blue-100 text-blue-700 border-blue-300',
+        'C': 'bg-blue-50 text-blue-600 border-blue-200',
+        'C-': 'bg-gray-100 text-gray-700 border-gray-300',
+    };
+    return map[rating] || 'bg-gray-100 text-gray-700 border-gray-300';
+}
+
 async function addFavorite() {
     try {
         await apiRequest('/api/user/favorites/', {
@@ -181,14 +220,18 @@ async function addFavorite() {
                 major: majorId
             })
         });
-        alert('收藏成功！');
+        showToast('收藏成功', 'success');
     } catch (error) {
         if (error.status === 403 || error.status === 401) {
-            if (confirm('需要登录才能收藏，是否跳转登录？')) {
-                window.location.href = '/login/';
-            }
+            showModal({
+                title: '需要登录',
+                content: '收藏功能需要登录，是否跳转到登录页？',
+                confirmText: '去登录',
+                onConfirm: () => window.location.href = '/login/'
+            });
         } else {
-            alert('收藏失败：' + JSON.stringify(error.data || {}));
+            const msg = error.data?.non_field_errors?.[0] || error.data?.detail || '收藏失败';
+            showToast(msg, 'error');
         }
     }
 }

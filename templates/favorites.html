@@ -6,8 +6,37 @@
 
 <h1 class="text-3xl font-bold mb-6">⭐ 我的收藏</h1>
 
-<div id="favorites-list" class="space-y-3">
-    <div class="loading">加载中...</div>
+<div id="login-required" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+    请先<a href="/login/" class="text-blue-600 hover:underline font-medium">登录</a>后查看收藏
+</div>
+
+<div id="favorites-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- 左侧：院校 -->
+    <section class="bg-white rounded-lg shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b">
+            <h2 class="text-xl font-bold text-gray-800">
+                🏫 收藏的院校
+                <span class="text-sm text-gray-500 font-normal ml-2">(<span id="school-count">0</span>)</span>
+            </h2>
+        </div>
+        <div id="school-favorites" class="space-y-2">
+            <div class="loading">加载中...</div>
+        </div>
+    </section>
+
+    <!-- 右侧：专业 -->
+    <section class="bg-white rounded-lg shadow-sm p-5">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b">
+            <h2 class="text-xl font-bold text-gray-800">
+                📖 收藏的专业
+                <span class="text-sm text-gray-500 font-normal ml-2">(<span id="major-count">0</span>)</span>
+            </h2>
+            <a href="/compare/" class="text-sm text-blue-600 hover:underline">去对比 →</a>
+        </div>
+        <div id="major-favorites" class="space-y-2">
+            <div class="loading">加载中...</div>
+        </div>
+    </section>
 </div>
 
 {% endblock %}
@@ -16,48 +45,88 @@
 <script>
 async function loadFavorites() {
     try {
-        const data = await apiRequest('/api/user/favorites/');
-        const container = document.getElementById('favorites-list');
+        // 一次获取所有收藏（接口最大可能分页，这里把 page_size 调大）
+        const data = await apiRequest('/api/user/favorites/?page_size=200');
+        const items = data.results || [];
 
-        if (data.results.length === 0) {
-            container.innerHTML = '<div class="loading">还没有收藏，去<a href="/schools/" class="text-blue-600 hover:underline">浏览院校</a>吧</div>';
-            return;
-        }
+        const schools = items.filter(f => f.target_type === 'school');
+        const majors = items.filter(f => f.target_type === 'major');
 
-        container.innerHTML = data.results.map(f => {
-            const isSchool = f.target_type === 'school';
-            const link = isSchool ? `/schools/${f.school}/` : `/majors/${f.major}/`;
-            const name = isSchool ? f.school_name : f.major_name;
-            return `
-                <div class="bg-white rounded shadow-sm p-4 flex justify-between items-center">
-                    <a href="${link}" class="flex-1">
-                        <span class="px-2 py-0.5 text-xs ${isSchool ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'} rounded mr-2">
-                            ${isSchool ? '院校' : '专业'}
-                        </span>
-                        <span class="font-medium">${name}</span>
-                    </a>
-                    <button onclick="removeFavorite(${f.id})" class="text-red-600 hover:text-red-800 text-sm">删除</button>
-                </div>
-            `;
-        }).join('');
+        document.getElementById('school-count').textContent = schools.length;
+        document.getElementById('major-count').textContent = majors.length;
+
+        renderSchoolFavorites(schools);
+        renderMajorFavorites(majors);
+
     } catch (error) {
         if (error.status === 403 || error.status === 401) {
-            document.getElementById('favorites-list').innerHTML =
-                '<div class="loading">请先<a href="/login/" class="text-blue-600 hover:underline">登录</a></div>';
+            document.getElementById('login-required').classList.remove('hidden');
+            document.getElementById('favorites-container').classList.add('hidden');
         } else {
-            document.getElementById('favorites-list').innerHTML = '<div class="loading">加载失败</div>';
+            showToast('加载失败', 'error');
         }
     }
 }
 
-async function removeFavorite(id) {
-    if (!confirm('确定取消收藏？')) return;
-    try {
-        await apiRequest(`/api/user/favorites/${id}/`, { method: 'DELETE' });
-        loadFavorites();
-    } catch (error) {
-        alert('删除失败');
+function renderSchoolFavorites(schools) {
+    const container = document.getElementById('school-favorites');
+    if (schools.length === 0) {
+        container.innerHTML = '<div class="text-gray-400 text-sm text-center py-6">还没有收藏院校<br><a href="/schools/" class="text-blue-600 hover:underline">去浏览院校 →</a></div>';
+        return;
     }
+
+    container.innerHTML = schools.map(f => `
+        <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded border">
+            <a href="/schools/${f.school}/" class="flex-1 text-gray-800 hover:text-blue-600">
+                <div class="font-medium">${f.school_name}</div>
+                <div class="text-xs text-gray-400 mt-0.5">${formatDate(f.created_at)}</div>
+            </a>
+            <button onclick="removeFavorite(${f.id})" class="text-red-500 hover:text-red-700 text-sm px-2 py-1">删除</button>
+        </div>
+    `).join('');
+}
+
+function renderMajorFavorites(majors) {
+    const container = document.getElementById('major-favorites');
+    if (majors.length === 0) {
+        container.innerHTML = '<div class="text-gray-400 text-sm text-center py-6">还没有收藏专业<br><a href="/subjects/" class="text-blue-600 hover:underline">去浏览专业 →</a></div>';
+        return;
+    }
+
+    container.innerHTML = majors.map(f => `
+        <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded border">
+            <a href="/majors/${f.major}/" class="flex-1 text-gray-800 hover:text-blue-600 min-w-0">
+                <div class="text-xs text-gray-500 truncate">${f.major_school_name} · ${f.major_college_name}</div>
+                <div class="font-medium truncate">${f.major_name} <span class="text-gray-400 text-sm">(${f.major_code})</span></div>
+                <div class="text-xs text-gray-400 mt-0.5">${formatDate(f.created_at)}</div>
+            </a>
+            <button onclick="removeFavorite(${f.id})" class="text-red-500 hover:text-red-700 text-sm px-2 py-1 ml-2">删除</button>
+        </div>
+    `).join('');
+}
+
+function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function removeFavorite(id) {
+    showModal({
+        title: '取消收藏',
+        content: '确定要取消这条收藏吗？',
+        confirmText: '确认删除',
+        confirmClass: 'bg-red-600 hover:bg-red-700',
+        onConfirm: async () => {
+            try {
+                await apiRequest(`/api/user/favorites/${id}/`, { method: 'DELETE' });
+                showToast('已取消收藏', 'success');
+                loadFavorites();
+            } catch (error) {
+                showToast('删除失败', 'error');
+            }
+        }
+    });
 }
 
 loadFavorites();

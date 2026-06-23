@@ -22,10 +22,10 @@ class ReferenceBookInline(admin.TabularInline):
 
 @admin.register(Major)
 class MajorAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'code', 'college', 'degree_type']
+    list_display = ['id', 'name', 'code', 'college', 'degree_type', 'subject_category']
     list_filter = ['degree_type', 'college__school']
     search_fields = ['name', 'code', 'college__name', 'college__school__name']
-    autocomplete_fields = ['college']
+    autocomplete_fields = ['college', 'subject_category']  # 加这个
     inlines = [ScoreLineInline, EnrollmentInline, ReferenceBookInline]
 
 

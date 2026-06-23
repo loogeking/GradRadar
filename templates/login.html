@@ -33,17 +33,16 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-    const errorMsg = document.getElementById('error-msg');
 
     try {
         await apiRequest('/api/user/login/', {
             method: 'POST',
             body: JSON.stringify({ username, password })
         });
-        window.location.href = '/';
+        showToast('登录成功', 'success');
+        setTimeout(() => window.location.href = '/', 800);
     } catch (error) {
-        errorMsg.textContent = error.data?.error || '登录失败';
-        errorMsg.classList.remove('hidden');
+        showToast(error.data?.error || '登录失败', 'error');
     }
 });
 </script>
