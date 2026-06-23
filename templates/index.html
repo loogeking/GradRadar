@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}GradRadar - 考研信息聚合平台{% endblock %}
+
+{% block content %}
+
+<!-- Hero 搜索区 -->
+<section class="text-center py-12">
+    <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+        🎓 考研信息一站查询
+    </h1>
+    <p class="text-lg text-gray-600 mb-8">
+        汇聚各高校研究生院公开数据，助你精准择校
+    </p>
+
+    <!-- 大搜索框 -->
+    <form action="/search/" method="get" class="max-w-2xl mx-auto">
+        <div class="flex shadow-lg rounded-lg overflow-hidden">
+            <input
+                type="text"
+                name="q"
+                placeholder="输入院校名称或专业代码..."
+                class="flex-1 px-6 py-4 text-lg outline-none"
+                autofocus
+            >
+            <button type="submit" class="px-8 bg-blue-600 text-white text-lg font-medium hover:bg-blue-700">
+                搜索
+            </button>
+        </div>
+    </form>
+
+    <!-- 数据统计 -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-3xl mx-auto mt-12">
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+            <div class="text-3xl font-bold text-blue-600">{{ school_count }}</div>
+            <div class="text-sm text-gray-500 mt-1">已收录院校</div>
+        </div>
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+            <div class="text-3xl font-bold text-green-600">{{ major_count }}</div>
+            <div class="text-sm text-gray-500 mt-1">专业信息</div>
+        </div>
+        <div class="bg-white rounded-lg p-6 shadow-sm col-span-2 md:col-span-1">
+            <div class="text-3xl font-bold text-purple-600">免费</div>
+            <div class="text-sm text-gray-500 mt-1">全部数据公开</div>
+        </div>
+    </div>
+</section>
+
+<!-- 热门院校 -->
+<section class="mt-12">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">🔥 热门院校</h2>
+        <a href="/schools/" class="text-blue-600 hover:underline">查看全部 →</a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for school in hot_schools %}
+        <a href="/schools/{{ school.id }}/" class="block bg-white rounded-lg p-5 shadow-sm card-hover">
+            <div class="flex items-start justify-between mb-2">
+                <h3 class="text-lg font-semibold text-gray-800">{{ school.name }}</h3>
+            </div>
+            <div class="mb-2">
+                {% if school.is_985 %}<span class="tag-985 px-2 py-0.5 text-xs rounded mr-1">985</span>{% endif %}
+                {% if school.is_211 %}<span class="tag-211 px-2 py-0.5 text-xs rounded mr-1">211</span>{% endif %}
+                {% if school.is_double_first %}<span class="tag-double px-2 py-0.5 text-xs rounded mr-1">双一流</span>{% endif %}
+            </div>
+            <p class="text-sm text-gray-500">{{ school.province.name }} · 院校代码 {{ school.code }}</p>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- 最新公告 -->
+<section class="mt-12">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">📢 最新公告</h2>
+    <div id="latest-notices" class="bg-white rounded-lg shadow-sm divide-y">
+        <div class="loading">加载中...</div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 加载最新公告
+async function loadLatestNotices() {
+    try {
+        const data = await apiRequest('/api/notices/?ordering=-publish_date&page_size=5');
+        const container = document.getElementById('latest-notices');
+
+        if (data.results.length === 0) {
+            container.innerHTML = '<div class="loading">暂无公告</div>';
+            return;
+        }
+
+        container.innerHTML = data.results.map(notice => `
+            <a href="${notice.url}" target="_blank" class="block p-4 hover:bg-gray-50">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <h3 class="text-gray-800 font-medium">${notice.title}</h3>
+                        <p class="text-sm text-gray-500 mt-1">
+                            ${notice.school_name}
+                            ${notice.college_name ? ' · ' + notice.college_name : ''}
+                        </p>
+                    </div>
+                    <div class="text-right ml-4">
+                        <span class="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+                            ${notice.notice_type_display}
+                        </span>
+                        <p class="text-xs text-gray-400 mt-1">${notice.publish_date || ''}</p>
+                    </div>
+                </div>
+            </a>
+        `).join('');
+    } catch (error) {
+        document.getElementById('latest-notices').innerHTML = '<div class="loading">加载失败</div>';
+    }
+}
+
+loadLatestNotices();
+</script>
+{% endblock %}

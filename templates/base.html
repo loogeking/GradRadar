@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GradRadar - 考研信息聚合平台{% endblock %}</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- ECharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+    <!-- 自定义CSS -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+<!-- 顶部导航 -->
+<nav class="bg-white shadow-sm border-b border-gray-200">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="flex justify-between items-center h-16">
+            <!-- Logo -->
+            <a href="/" class="flex items-center space-x-2">
+                <span class="text-2xl">🎓</span>
+                <span class="text-xl font-bold text-gray-800">GradRadar</span>
+                <span class="text-sm text-gray-500 hidden md:inline">研途雷达</span>
+            </a>
+
+            <!-- 导航链接 -->
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="/" class="text-gray-700 hover:text-blue-600">首页</a>
+                <a href="/schools/" class="text-gray-700 hover:text-blue-600">院校</a>
+                <a href="/compare/" class="text-gray-700 hover:text-blue-600">对比</a>
+                <a href="/search/" class="text-gray-700 hover:text-blue-600">搜索</a>
+            </div>
+
+            <!-- 用户区 -->
+            <div id="user-area" class="flex items-center space-x-3">
+                <!-- 未登录时显示 -->
+                <div id="guest-buttons" class="flex space-x-2">
+                    <a href="/login/" class="px-4 py-2 text-sm text-gray-700 hover:text-blue-600">登录</a>
+                    <a href="/register/" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">注册</a>
+                </div>
+                <!-- 已登录时显示（初始隐藏） -->
+                <div id="user-info" class="hidden flex items-center space-x-3">
+                    <a href="/favorites/" class="text-sm text-gray-700 hover:text-blue-600">我的收藏</a>
+                    <span class="text-sm text-gray-500">|</span>
+                    <span id="username-display" class="text-sm text-gray-700"></span>
+                    <button id="logout-btn" class="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300">登出</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- 主内容区 -->
+<main class="flex-1 max-w-7xl w-full mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+</main>
+
+<!-- 页脚 -->
+<footer class="bg-white border-t border-gray-200 mt-12">
+    <div class="max-w-7xl mx-auto px-4 py-6 text-center text-sm text-gray-500">
+        <p>© 2025 GradRadar · 考研信息聚合分析平台</p>
+        <p class="mt-1">数据来源于各高校研究生院官网公开信息 · 仅供参考</p>
+    </div>
+</footer>
+
+<!-- 通用JS -->
+<script src="{% static 'js/main.js' %}"></script>
+<script src="{% static 'js/chart.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

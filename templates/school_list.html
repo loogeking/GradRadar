@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}院校列表 - GradRadar{% endblock %}
+
+{% block content %}
+
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">院校列表</h1>
+    <p class="text-gray-600">浏览所有已收录的高校</p>
+</div>
+
+<!-- 筛选区 -->
+<div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+    <div class="flex flex-wrap gap-3 items-center">
+        <input type="text" id="search-input" placeholder="搜索学校名称..."
+               class="flex-1 min-w-[200px] px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none">
+
+        <select id="province-filter" class="px-3 py-2 border rounded-md">
+            <option value="">全部省份</option>
+        </select>
+
+        <select id="level-filter" class="px-3 py-2 border rounded-md">
+            <option value="">全部层次</option>
+            <option value="985">985工程</option>
+            <option value="211">211工程</option>
+            <option value="double_first">双一流</option>
+            <option value="normal">普通院校</option>
+        </select>
+
+        <button id="reset-btn" class="px-4 py-2 text-gray-600 hover:text-gray-800">重置</button>
+    </div>
+</div>
+
+<!-- 学校列表 -->
+<div id="school-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="loading col-span-full">加载中...</div>
+</div>
+
+<!-- 分页 -->
+<div id="pagination" class="flex justify-center items-center space-x-2 mt-8"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+
+async function loadProvinces() {
+    const data = await apiRequest('/api/provinces/');
+    const select = document.getElementById('province-filter');
+    data.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = p.name;
+        select.appendChild(option);
+    });
+}
+
+async function loadSchools(page = 1) {
+    const search = document.getElementById('search-input').value;
+    const province = document.getElementById('province-filter').value;
+    const level = document.getElementById('level-filter').value;
+
+    let url = `/api/schools/?page=${page}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (province) url += `&province=${province}`;
+    if (level) url += `&level=${level}`;
+
+    try {
+        const data = await apiRequest(url);
+        renderSchools(data.results);
+        renderPagination(data);
+    } catch (error) {
+        document.getElementById('school-list').innerHTML =
+            '<div class="loading col-span-full">加载失败</div>';
+    }
+}
+
+function renderSchools(schools) {
+    const container = document.getElementById('school-list');
+    if (schools.length === 0) {
+        container.innerHTML = '<div class="loading col-span-full">没有找到符合条件的院校</div>';
+        return;
+    }
+
+    container.innerHTML = schools.map(s => `
+        <a href="/schools/${s.id}/" class="block bg-white rounded-lg p-5 shadow-sm card-hover">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">${s.name}</h3>
+            <div class="mb-2">${getSchoolTags(s)}</div>
+            <p class="text-sm text-gray-500">${s.province_name} · 院校代码 ${s.code || '-'}</p>
+        </a>
+    `).join('');
+}
+
+function renderPagination(data) {
+    const totalPages = Math.ceil(data.count / 20);
+    const container = document.getElementById('pagination');
+
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    // 上一页
+    html += `<button onclick="changePage(${currentPage - 1})" ${!data.previous ? 'disabled' : ''}
+              class="px-3 py-1 border rounded ${!data.previous ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}">上一页</button>`;
+    // 页码
+    html += `<span class="px-3 py-1 text-gray-600">第 ${currentPage} / ${totalPages} 页</span>`;
+    // 下一页
+    html += `<button onclick="changePage(${currentPage + 1})" ${!data.next ? 'disabled' : ''}
+              class="px-3 py-1 border rounded ${!data.next ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}">下一页</button>`;
+
+    container.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadSchools(page);
+    window.scrollTo(0, 0);
+}
+
+// 防抖
+let debounceTimer;
+function debounce(fn, delay = 300) {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(fn, delay);
+}
+
+// 事件绑定
+document.getElementById('search-input').addEventListener('input', () => {
+    debounce(() => { currentPage = 1; loadSchools(1); });
+});
+document.getElementById('province-filter').addEventListener('change', () => { currentPage = 1; loadSchools(1); });
+document.getElementById('level-filter').addEventListener('change', () => { currentPage = 1; loadSchools(1); });
+document.getElementById('reset-btn').addEventListener('click', () => {
+    document.getElementById('search-input').value = '';
+    document.getElementById('province-filter').value = '';
+    document.getElementById('level-filter').value = '';
+    currentPage = 1;
+    loadSchools(1);
+});
+
+// 初始化
+loadProvinces();
+loadSchools(1);
+</script>
+{% endblock %}

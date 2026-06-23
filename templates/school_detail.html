@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}院校详情 - GradRadar{% endblock %}
+
+{% block content %}
+
+<div id="school-detail">
+    <div class="loading">加载中...</div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const schoolId = {{ school_id }};
+
+async function loadSchoolDetail() {
+    try {
+        const school = await apiRequest(`/api/schools/${schoolId}/`);
+        renderSchool(school);
+        loadNotices();
+    } catch (error) {
+        document.getElementById('school-detail').innerHTML = '<div class="loading">加载失败</div>';
+    }
+}
+
+function renderSchool(school) {
+    let collegesHtml = '';
+    if (school.colleges && school.colleges.length > 0) {
+        collegesHtml = school.colleges.map(c => `
+            <div class="bg-white rounded-lg p-4 shadow-sm">
+                <h3 class="font-semibold text-gray-800 mb-2">${c.name}</h3>
+                <div id="majors-of-${c.id}" class="space-y-1 text-sm">
+                    <div class="text-gray-400">加载专业中...</div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        collegesHtml = '<div class="loading">暂无学院数据</div>';
+    }
+
+    document.getElementById('school-detail').innerHTML = `
+        <!-- 基本信息 -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div class="flex items-start justify-between flex-wrap">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">${school.name}</h1>
+                    <div class="mb-3">${getSchoolTags(school)}</div>
+                    <p class="text-gray-600">📍 ${school.province_name}　🆔 院校代码 ${school.code || '-'}</p>
+                    ${school.official_url ? `<p class="mt-2"><a href="${school.official_url}" target="_blank" class="text-blue-600 hover:underline">研究生院官网 →</a></p>` : ''}
+                </div>
+                <button id="favorite-btn" class="px-4 py-2 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">
+                    ⭐ 收藏院校
+                </button>
+            </div>
+            ${school.description ? `<p class="mt-4 text-gray-700">${school.description}</p>` : ''}
+        </div>
+
+        <!-- 学院与专业 -->
+        <section class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📚 学院与专业</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${collegesHtml}
+            </div>
+        </section>
+
+        <!-- 最新公告 -->
+        <section>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📢 最新公告</h2>
+            <div id="school-notices" class="bg-white rounded-lg shadow-sm divide-y">
+                <div class="loading">加载中...</div>
+            </div>
+        </section>
+    `;
+
+    // 加载每个学院的专业
+    if (school.colleges) {
+        school.colleges.forEach(c => loadCollegeMajors(c.id));
+    }
+
+    // 绑定收藏按钮
+    document.getElementById('favorite-btn').addEventListener('click', () => addFavorite('school', schoolId));
+}
+
+async function loadCollegeMajors(collegeId) {
+    try {
+        const data = await apiRequest(`/api/majors/?college=${collegeId}`);
+        const container = document.getElementById(`majors-of-${collegeId}`);
+        if (data.results.length === 0) {
+            container.innerHTML = '<div class="text-gray-400 text-sm">暂无专业数据</div>';
+            return;
+        }
+        container.innerHTML = data.results.map(m => `
+            <a href="/majors/${m.id}/" class="block py-1 text-blue-600 hover:underline">
+                ${m.name} <span class="text-gray-400">(${m.code})</span>
+            </a>
+        `).join('');
+    } catch (error) {
+        document.getElementById(`majors-of-${collegeId}`).innerHTML = '<div class="text-gray-400">加载失败</div>';
+    }
+}
+
+async function loadNotices() {
+    try {
+        const data = await apiRequest(`/api/notices/?school=${schoolId}&page_size=10`);
+        const container = document.getElementById('school-notices');
+        if (data.results.length === 0) {
+            container.innerHTML = '<div class="loading">暂无公告</div>';
+            return;
+        }
+        container.innerHTML = data.results.map(n => `
+            <a href="${n.url}" target="_blank" class="block p-4 hover:bg-gray-50">
+                <div class="flex justify-between">
+                    <span class="text-gray-800">${n.title}</span>
+                    <span class="text-sm text-gray-400 ml-4">${n.publish_date || ''}</span>
+                </div>
+            </a>
+        `).join('');
+    } catch (error) {
+        document.getElementById('school-notices').innerHTML = '<div class="loading">加载失败</div>';
+    }
+}
+
+async function addFavorite(type, id) {
+    try {
+        const payload = { target_type: type };
+        if (type === 'school') payload.school = id;
+        if (type === 'major') payload.major = id;
+
+        await apiRequest('/api/user/favorites/', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        alert('收藏成功！');
+    } catch (error) {
+        if (error.status === 403 || error.status === 401) {
+            if (confirm('需要登录才能收藏，是否跳转登录？')) {
+                window.location.href = '/login/';
+            }
+        } else {
+            alert('收藏失败：' + JSON.stringify(error.data || {}));
+        }
+    }
+}
+
+loadSchoolDetail();
+</script>
+{% endblock %}

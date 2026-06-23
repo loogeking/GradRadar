@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}专业详情 - GradRadar{% endblock %}
+
+{% block content %}
+
+<div id="major-detail">
+    <div class="loading">加载中...</div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const majorId = {{ major_id }};
+let majorData = null;
+let trendData = null;
+
+async function loadMajor() {
+    try {
+        majorData = await apiRequest(`/api/majors/${majorId}/`);
+        trendData = await apiRequest(`/api/trends/${majorId}/`);
+        renderMajor();
+    } catch (error) {
+        document.getElementById('major-detail').innerHTML = '<div class="loading">加载失败</div>';
+    }
+}
+
+function renderMajor() {
+    const m = majorData;
+
+    // 复试线表格
+    const scoreLines = m.score_lines || [];
+    let scoreTable = '';
+    if (scoreLines.length > 0) {
+        scoreTable = `
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b">
+                <tr>
+                    <th class="px-4 py-2 text-left">年份</th>
+                    <th class="px-4 py-2 text-left">总分</th>
+                    <th class="px-4 py-2 text-left">政治</th>
+                    <th class="px-4 py-2 text-left">英语</th>
+                    <th class="px-4 py-2 text-left">数学</th>
+                    <th class="px-4 py-2 text-left">专业课</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y">
+                ${scoreLines.map(s => `
+                    <tr>
+                        <td class="px-4 py-2">${s.year}</td>
+                        <td class="px-4 py-2 font-medium text-blue-600">${s.total_score}</td>
+                        <td class="px-4 py-2">${s.politics || '-'}</td>
+                        <td class="px-4 py-2">${s.english || '-'}</td>
+                        <td class="px-4 py-2">${s.math || '-'}</td>
+                        <td class="px-4 py-2">${s.professional || '-'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>`;
+    } else {
+        scoreTable = '<div class="loading">暂无复试线数据</div>';
+    }
+
+    // 招生表格
+    const enrollments = m.enrollments || [];
+    let enrollTable = '';
+    if (enrollments.length > 0) {
+        enrollTable = `
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b">
+                <tr>
+                    <th class="px-4 py-2 text-left">年份</th>
+                    <th class="px-4 py-2 text-left">计划总数</th>
+                    <th class="px-4 py-2 text-left">统考</th>
+                    <th class="px-4 py-2 text-left">推免</th>
+                    <th class="px-4 py-2 text-left">推免比例</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y">
+                ${enrollments.map(e => `
+                    <tr>
+                        <td class="px-4 py-2">${e.year}</td>
+                        <td class="px-4 py-2 font-medium">${e.plan_total || '-'}</td>
+                        <td class="px-4 py-2">${e.plan_exam || '-'}</td>
+                        <td class="px-4 py-2">${e.plan_recommend || '-'}</td>
+                        <td class="px-4 py-2">${e.recommend_ratio ? e.recommend_ratio + '%' : '-'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>`;
+    } else {
+        enrollTable = '<div class="loading">暂无招生数据</div>';
+    }
+
+    // 参考书目
+    const books = m.reference_books || [];
+    let booksHtml = '';
+    if (books.length > 0) {
+        booksHtml = '<ul class="space-y-2">' + books.map(b => `
+            <li class="border-b pb-2">
+                <div class="font-medium">${b.book_name}</div>
+                <div class="text-sm text-gray-500">
+                    ${b.author || ''} ${b.publisher ? '/ ' + b.publisher : ''}
+                    ${b.exam_subject ? '<span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">' + b.exam_subject + '</span>' : ''}
+                </div>
+            </li>
+        `).join('') + '</ul>';
+    } else {
+        booksHtml = '<div class="loading">暂无参考书目</div>';
+    }
+
+    document.getElementById('major-detail').innerHTML = `
+        <!-- 基本信息 -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div class="flex justify-between flex-wrap items-start">
+                <div>
+                    <div class="text-sm text-gray-500 mb-2">
+                        <a href="/schools/${m.school_id}/" class="hover:underline">${m.school_name}</a>
+                        / ${m.college_name}
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">${m.name}</h1>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-gray-600">专业代码: <strong>${m.code}</strong></span>
+                        <span class="px-2 py-1 text-xs bg-gray-100 rounded">${m.degree_type === 'academic' ? '学术学位' : '专业学位'}</span>
+                    </div>
+                </div>
+                <button id="favorite-btn" class="px-4 py-2 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">
+                    ⭐ 收藏专业
+                </button>
+            </div>
+            ${m.research_direction ? `<div class="mt-4"><strong>研究方向：</strong>${m.research_direction}</div>` : ''}
+            ${m.exam_subjects ? `<div class="mt-2"><strong>考试科目：</strong>${m.exam_subjects}</div>` : ''}
+        </div>
+
+        <!-- 复试线 -->
+        <section class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 历年复试分数线</h2>
+            <div id="score-chart" class="chart-container mb-6"></div>
+            ${scoreTable}
+        </section>
+
+        <!-- 招生 -->
+        <section class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">👥 历年招生计划</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div id="enrollment-chart" class="chart-container"></div>
+                <div id="recommend-chart" class="chart-container"></div>
+            </div>
+            ${enrollTable}
+        </section>
+
+        <!-- 参考书 -->
+        <section class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📚 参考书目</h2>
+            ${booksHtml}
+        </section>
+    `;
+
+    // 渲染图表
+    setTimeout(() => {
+        if (trendData.score_lines.years.length > 0) {
+            renderScoreLineChart('score-chart', trendData.score_lines);
+        }
+        if (trendData.enrollments.years.length > 0) {
+            renderEnrollmentChart('enrollment-chart', trendData.enrollments);
+            renderRecommendRatioChart('recommend-chart', trendData.enrollments);
+        }
+    }, 100);
+
+    // 收藏按钮
+    document.getElementById('favorite-btn').addEventListener('click', addFavorite);
+}
+
+async function addFavorite() {
+    try {
+        await apiRequest('/api/user/favorites/', {
+            method: 'POST',
+            body: JSON.stringify({
+                target_type: 'major',
+                major: majorId
+            })
+        });
+        alert('收藏成功！');
+    } catch (error) {
+        if (error.status === 403 || error.status === 401) {
+            if (confirm('需要登录才能收藏，是否跳转登录？')) {
+                window.location.href = '/login/';
+            }
+        } else {
+            alert('收藏失败：' + JSON.stringify(error.data || {}));
+        }
+    }
+}
+
+loadMajor();
+</script>
+{% endblock %}

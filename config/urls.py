@@ -10,7 +10,8 @@ urlpatterns = [
     path('api/', include('apps.tutors.urls')),
     path('api/', include('apps.notices.urls')),
     path('api/user/', include('apps.users.urls')),
-
-    # DRF登录界面（方便测试）
     path('api-auth/', include('rest_framework.urls')),
+
+    # 前端页面（必须放最后，因为''匹配根路径）
+    path('', include('apps.frontend.urls')),
 ]

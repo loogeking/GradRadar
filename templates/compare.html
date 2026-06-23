@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block title %}专业对比 - GradRadar{% endblock %}
+
+{% block content %}
+
+<div class="mb-6">
+    <h1 class="text-3xl font-bold mb-2">专业对比</h1>
+    <p class="text-gray-600">最多可同时对比5个专业的复试线和招生情况</p>
+</div>
+
+<!-- 添加专业 -->
+<div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+    <div class="flex gap-2">
+        <input type="text" id="major-search" placeholder="输入专业名称或学校名称搜索..."
+               class="flex-1 px-3 py-2 border rounded outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+    <div id="search-suggestions" class="mt-2 hidden bg-white border rounded shadow max-h-60 overflow-y-auto"></div>
+</div>
+
+<!-- 已选专业 -->
+<div class="mb-6">
+    <h2 class="text-lg font-semibold mb-2">已选专业 (<span id="selected-count">0</span>/5)</h2>
+    <div id="selected-list" class="flex flex-wrap gap-2">
+        <span class="text-gray-400">尚未选择专业</span>
+    </div>
+    <button id="compare-btn" disabled class="mt-3 px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed">
+        开始对比
+    </button>
+</div>
+
+<!-- 对比结果 -->
+<div id="compare-result"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedMajors = [];
+
+async function searchMajors(keyword) {
+    if (!keyword.trim()) {
+        document.getElementById('search-suggestions').classList.add('hidden');
+        return;
+    }
+    try {
+        const data = await apiRequest(`/api/majors/?search=${encodeURIComponent(keyword)}&page_size=10`);
+        const container = document.getElementById('search-suggestions');
+        if (data.results.length === 0) {
+            container.innerHTML = '<div class="p-3 text-gray-400">无匹配结果</div>';
+        } else {
+            container.innerHTML = data.results.map(m => `
+                <div class="p-3 hover:bg-gray-100 cursor-pointer" onclick="addMajor(${m.id}, '${m.school_name} - ${m.name}')">
+                    <div class="font-medium">${m.name} <span class="text-gray-400 text-sm">(${m.code})</span></div>
+                    <div class="text-sm text-gray-500">${m.school_name} · ${m.college_name}</div>
+                </div>
+            `).join('');
+        }
+        container.classList.remove('hidden');
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function addMajor(id, name) {
+    if (selectedMajors.find(m => m.id === id)) {
+        alert('已添加');
+        return;
+    }
+    if (selectedMajors.length >= 5) {
+        alert('最多对比5个专业');
+        return;
+    }
+    selectedMajors.push({ id, name });
+    renderSelected();
+    document.getElementById('search-suggestions').classList.add('hidden');
+    document.getElementById('major-search').value = '';
+}
+
+function removeMajor(id) {
+    selectedMajors = selectedMajors.filter(m => m.id !== id);
+    renderSelected();
+}
+
+function renderSelected() {
+    const list = document.getElementById('selected-list');
+    document.getElementById('selected-count').textContent = selectedMajors.length;
+    if (selectedMajors.length === 0) {
+        list.innerHTML = '<span class="text-gray-400">尚未选择专业</span>';
+    } else {
+        list.innerHTML = selectedMajors.map(m => `
+            <span class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded">
+                ${m.name}
+                <button onclick="removeMajor(${m.id})" class="ml-2 text-blue-500 hover:text-blue-800">×</button>
+            </span>
+        `).join('');
+    }
+    document.getElementById('compare-btn').disabled = selectedMajors.length < 2;
+}
+
+async function doCompare() {
+    const ids = selectedMajors.map(m => m.id).join(',');
+    try {
+        const data = await apiRequest(`/api/compare/?ids=${ids}`);
+        renderCompareResult(data.results);
+    } catch (error) {
+        alert('对比失败');
+    }
+}
+
+function renderCompareResult(majors) {
+    // 收集所有年份
+    const allYears = new Set();
+    majors.forEach(m => {
+        (m.score_lines || []).forEach(s => allYears.add(s.year));
+    });
+    const years = Array.from(allYears).sort();
+
+    // 复试线对比图
+    const scoreSeries = majors.map(m => ({
+        name: `${m.school_name}-${m.name}`,
+        type: 'line',
+        smooth: true,
+        data: years.map(y => {
+            const s = (m.score_lines || []).find(s => s.year === y);
+            return s ? s.total_score : null;
+        }),
+    }));
+
+    document.getElementById('compare-result').innerHTML = `
+        <section class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4">📊 复试线对比</h2>
+            <div id="compare-score-chart" class="chart-container"></div>
+        </section>
+
+        <section class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-2xl font-bold mb-4">📋 专业详情对比</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-3 py-2 text-left">项目</th>
+                            ${majors.map(m => `<th class="px-3 py-2 text-left">${m.school_name}<br><span class="text-gray-500 font-normal">${m.name}</span></th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <tr><td class="px-3 py-2 font-medium">专业代码</td>${majors.map(m => `<td class="px-3 py-2">${m.code}</td>`).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">学位类型</td>${majors.map(m => `<td class="px-3 py-2">${m.degree_type === 'academic' ? '学硕' : '专硕'}</td>`).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">最新复试线</td>${majors.map(m => {
+                            const latest = (m.score_lines || []).sort((a,b) => b.year - a.year)[0];
+                            return `<td class="px-3 py-2 text-blue-600 font-medium">${latest ? latest.total_score + '分(' + latest.year + ')' : '-'}</td>`;
+                        }).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">最新招生计划</td>${majors.map(m => {
+                            const latest = (m.enrollments || []).sort((a,b) => b.year - a.year)[0];
+                            return `<td class="px-3 py-2">${latest ? latest.plan_total + '人' : '-'}</td>`;
+                        }).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">推免比例</td>${majors.map(m => {
+                            const latest = (m.enrollments || []).sort((a,b) => b.year - a.year)[0];
+                            return `<td class="px-3 py-2">${latest && latest.recommend_ratio ? latest.recommend_ratio + '%' : '-'}</td>`;
+                        }).join('')}</tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    `;
+
+    setTimeout(() => {
+        const chart = echarts.init(document.getElementById('compare-score-chart'));
+        chart.setOption({
+            tooltip: { trigger: 'axis' },
+            legend: { bottom: 0, type: 'scroll' },
+            grid: { left: '3%', right: '4%', bottom: '20%', containLabel: true },
+            xAxis: { type: 'category', data: years.map(y => y + '年') },
+            yAxis: { type: 'value', name: '分数' },
+            series: scoreSeries
+        });
+    }, 100);
+}
+
+// 事件绑定
+let timer;
+document.getElementById('major-search').addEventListener('input', (e) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => searchMajors(e.target.value), 300);
+});
+
+document.getElementById('compare-btn').addEventListener('click', doCompare);
+
+// 点击页面其他地方关闭建议
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#major-search') && !e.target.closest('#search-suggestions')) {
+        document.getElementById('search-suggestions').classList.add('hidden');
+    }
+});
+</script>
+{% endblock %}

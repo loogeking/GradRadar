@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'apps.tutors',
     'apps.notices',
     'apps.users',
+    'apps.frontend',
 ]
 
 MIDDLEWARE = [

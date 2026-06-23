@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}搜索: {{ keyword }} - GradRadar{% endblock %}
+
+{% block content %}
+
+<div class="mb-6">
+    <form action="/search/" method="get" class="flex shadow-sm rounded-lg overflow-hidden max-w-2xl">
+        <input type="text" name="q" value="{{ keyword }}" placeholder="输入院校或专业..."
+               class="flex-1 px-4 py-2 outline-none">
+        <button class="px-6 bg-blue-600 text-white">搜索</button>
+    </form>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- 学校结果 -->
+    <section>
+        <h2 class="text-xl font-bold mb-3">🏫 院校结果</h2>
+        <div id="school-results" class="space-y-3">
+            <div class="loading">加载中...</div>
+        </div>
+    </section>
+
+    <!-- 专业结果 -->
+    <section>
+        <h2 class="text-xl font-bold mb-3">📖 专业结果</h2>
+        <div id="major-results" class="space-y-3">
+            <div class="loading">加载中...</div>
+        </div>
+    </section>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const keyword = "{{ keyword|escapejs }}";
+
+async function searchSchools() {
+    try {
+        const data = await apiRequest(`/api/schools/?search=${encodeURIComponent(keyword)}`);
+        const container = document.getElementById('school-results');
+        if (data.results.length === 0) {
+            container.innerHTML = '<div class="loading">无匹配院校</div>';
+            return;
+        }
+        container.innerHTML = data.results.map(s => `
+            <a href="/schools/${s.id}/" class="block bg-white rounded p-4 shadow-sm card-hover">
+                <div class="font-semibold">${s.name}</div>
+                <div class="mt-1">${getSchoolTags(s)}</div>
+                <div class="text-sm text-gray-500 mt-1">${s.province_name}</div>
+            </a>
+        `).join('');
+    } catch (error) {
+        document.getElementById('school-results').innerHTML = '<div class="loading">加载失败</div>';
+    }
+}
+
+async function searchMajors() {
+    try {
+        const data = await apiRequest(`/api/majors/?search=${encodeURIComponent(keyword)}`);
+        const container = document.getElementById('major-results');
+        if (data.results.length === 0) {
+            container.innerHTML = '<div class="loading">无匹配专业</div>';
+            return;
+        }
+        container.innerHTML = data.results.map(m => `
+            <a href="/majors/${m.id}/" class="block bg-white rounded p-4 shadow-sm card-hover">
+                <div class="font-semibold">${m.name} <span class="text-sm text-gray-400">(${m.code})</span></div>
+                <div class="text-sm text-gray-500 mt-1">${m.school_name} · ${m.college_name}</div>
+            </a>
+        `).join('');
+    } catch (error) {
+        document.getElementById('major-results').innerHTML = '<div class="loading">加载失败</div>';
+    }
+}
+
+if (keyword) {
+    searchSchools();
+    searchMajors();
+} else {
+    document.getElementById('school-results').innerHTML = '<div class="loading">请输入搜索词</div>';
+    document.getElementById('major-results').innerHTML = '';
+}
+</script>
+{% endblock %}
