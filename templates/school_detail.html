@@ -40,14 +40,24 @@ function renderSchool(school) {
     }
 
     document.getElementById('school-detail').innerHTML = `
-        <!-- 基本信息 -->
         <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
             <div class="flex items-start justify-between flex-wrap">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-800 mb-2">${school.name}</h1>
-                    <div class="mb-3">${getSchoolTags(school)}</div>
-                    <p class="text-gray-600">📍 ${school.province_name}　🆔 院校代码 ${school.code || '-'}</p>
+                    <div class="mb-3 flex flex-wrap gap-1">
+                        ${getSchoolTags(school)}
+                        ${school.is_self_scoring ? '<span class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">34所</span>' : ''}
+                        ${school.school_type_display ? `<span class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-700">${school.school_type_display}</span>` : ''}
+                    </div>
+                    <p class="text-gray-600">
+                        📍 ${school.province_name}
+                        ${school.province_area_display ? ' · ' + school.province_area_display : ''}
+                        ${school.code ? '　🆔 ' + school.code : ''}
+                    </p>
                     ${school.official_url ? `<p class="mt-2"><a href="${school.official_url}" target="_blank" class="text-blue-600 hover:underline">研究生院官网 →</a></p>` : ''}
+                    <p class="text-sm text-gray-500 mt-2">
+                        共 ${school.college_count} 个学院 · ${school.major_count} 个招生专业
+                    </p>
                 </div>
                 <button id="favorite-btn" class="px-4 py-2 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">
                     ⭐ 收藏院校
@@ -56,7 +66,6 @@ function renderSchool(school) {
             ${school.description ? `<p class="mt-4 text-gray-700">${school.description}</p>` : ''}
         </div>
 
-        <!-- 学院与专业 -->
         <section class="mb-6">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">📚 学院与专业</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -64,7 +73,6 @@ function renderSchool(school) {
             </div>
         </section>
 
-        <!-- 最新公告 -->
         <section>
             <h2 class="text-2xl font-bold text-gray-800 mb-4">📢 最新公告</h2>
             <div id="school-notices" class="bg-white rounded-lg shadow-sm divide-y">
@@ -73,18 +81,16 @@ function renderSchool(school) {
         </section>
     `;
 
-    // 加载每个学院的专业
     if (school.colleges) {
         school.colleges.forEach(c => loadCollegeMajors(c.id));
     }
 
-    // 绑定收藏按钮
     document.getElementById('favorite-btn').addEventListener('click', () => addFavorite('school', schoolId));
 }
 
 async function loadCollegeMajors(collegeId) {
     try {
-        const data = await apiRequest(`/api/majors/?college=${collegeId}`);
+        const data = await apiRequest(`/api/majors/?college=${collegeId}&page_size=200`);
         const container = document.getElementById(`majors-of-${collegeId}`);
         if (data.results.length === 0) {
             container.innerHTML = '<div class="text-gray-400 text-sm">暂无专业数据</div>';
@@ -92,7 +98,10 @@ async function loadCollegeMajors(collegeId) {
         }
         container.innerHTML = data.results.map(m => `
             <a href="/majors/${m.id}/" class="block py-1 text-blue-600 hover:underline">
-                ${m.name} <span class="text-gray-400">(${m.code})</span>
+                ${m.name}
+                <span class="text-gray-400">(${m.code})</span>
+                ${m.exam_type_display && m.exam_type !== 'unified' ? `<span class="ml-1 px-1 text-xs bg-orange-100 text-orange-700 rounded">${m.exam_type_display}</span>` : ''}
+                ${m.learning_type !== 'full_time' ? `<span class="ml-1 px-1 text-xs bg-gray-100 text-gray-600 rounded">${m.learning_type_display}</span>` : ''}
             </a>
         `).join('');
     } catch (error) {
@@ -141,8 +150,7 @@ async function addFavorite(type, id) {
                 onConfirm: () => window.location.href = '/login/'
             });
         } else {
-            const msg = error.data?.non_field_errors?.[0] || error.data?.detail || '收藏失败';
-            showToast(msg, 'error');
+            showToast('收藏失败', 'error');
         }
     }
 }

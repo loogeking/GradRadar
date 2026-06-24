@@ -39,7 +39,6 @@ function getRatingClass(rating) {
 }
 
 function render(s) {
-    const levelMap = {first: '一级学科', second: '二级学科', professional: '专业学位'};
     const ratings = s.ratings || [];
     const majorsByschool = s.majors_by_school || [];
 
@@ -117,7 +116,7 @@ function render(s) {
                     <div class="flex items-center space-x-3 text-gray-600">
                         <span>学科代码：<strong>${s.code}</strong></span>
                         <span>门类：${s.category || '-'}</span>
-                        <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">${levelMap[s.level] || s.level}</span>
+                        <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">${s.level_display || s.level}</span>
                     </div>
                 </div>
                 <div class="text-right">

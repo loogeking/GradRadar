@@ -40,6 +40,8 @@ class FavoriteSerializer(serializers.ModelSerializer):
     major_college_name = serializers.CharField(source='major.college.name', read_only=True, default=None)
     major_school_name = serializers.CharField(source='major.college.school.name', read_only=True, default=None)
     major_full_name = serializers.SerializerMethodField()
+    major_exam_type_display = serializers.CharField(source='major.get_exam_type_display', read_only=True, default=None)
+    major_learning_type_display = serializers.CharField(source='major.get_learning_type_display', read_only=True, default=None)
 
     class Meta:
         model = Favorite
@@ -48,6 +50,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
             'school', 'school_name',
             'major', 'major_name', 'major_code',
             'major_college_name', 'major_school_name', 'major_full_name',
+            'major_exam_type_display', 'major_learning_type_display',
             'note', 'created_at'
         ]
         read_only_fields = ['created_at']

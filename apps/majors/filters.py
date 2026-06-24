@@ -8,15 +8,21 @@ class MajorFilter(django_filters.FilterSet):
     school = django_filters.NumberFilter(field_name='college__school__id')
     college = django_filters.NumberFilter(field_name='college__id')
     degree_type = django_filters.CharFilter(field_name='degree_type')
+    learning_type = django_filters.CharFilter(field_name='learning_type')
+    exam_type = django_filters.CharFilter(field_name='exam_type')
+    subject_category = django_filters.NumberFilter(field_name='subject_category__id')
 
     class Meta:
         model = Major
-        fields = ['name', 'code', 'school', 'college', 'degree_type']
+        fields = ['name', 'code', 'school', 'college',
+                  'degree_type', 'learning_type', 'exam_type', 'subject_category']
 
 
 class ScoreLineFilter(django_filters.FilterSet):
+    school = django_filters.NumberFilter(field_name='school__id')
+    score_type = django_filters.CharFilter(field_name='score_type')
+    subject_category = django_filters.NumberFilter(field_name='subject_category__id')
     major = django_filters.NumberFilter(field_name='major__id')
-    school = django_filters.NumberFilter(field_name='major__college__school__id')
     year = django_filters.NumberFilter(field_name='year')
     year_min = django_filters.NumberFilter(field_name='year', lookup_expr='gte')
     year_max = django_filters.NumberFilter(field_name='year', lookup_expr='lte')
@@ -25,7 +31,7 @@ class ScoreLineFilter(django_filters.FilterSet):
 
     class Meta:
         model = ScoreLine
-        fields = ['major', 'school', 'year']
+        fields = ['school', 'score_type', 'subject_category', 'major', 'year']
 
 
 class EnrollmentFilter(django_filters.FilterSet):

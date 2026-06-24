@@ -17,26 +17,28 @@
 
         <select id="level-filter" class="px-3 py-2 border rounded">
             <option value="">全部层级</option>
-            <option value="first">一级学科</option>
-            <option value="second">二级学科</option>
-            <option value="professional">专业学位</option>
+            <option value="category">学科门类</option>
+            <option value="first_class">一级学科</option>
+            <option value="second_class">二级学科</option>
+            <option value="professional_category">专业学位类别</option>
+            <option value="professional_field">专业学位领域</option>
         </select>
 
         <select id="category-filter" class="px-3 py-2 border rounded">
             <option value="">全部门类</option>
-            <option value="工学">工学</option>
-            <option value="理学">理学</option>
-            <option value="文学">文学</option>
-            <option value="管理学">管理学</option>
-            <option value="经济学">经济学</option>
-            <option value="法学">法学</option>
-            <option value="教育学">教育学</option>
-            <option value="医学">医学</option>
-            <option value="艺术学">艺术学</option>
-            <option value="农学">农学</option>
-            <option value="历史学">历史学</option>
-            <option value="哲学">哲学</option>
-            <option value="军事学">军事学</option>
+            <option value="01">哲学</option>
+            <option value="02">经济学</option>
+            <option value="03">法学</option>
+            <option value="04">教育学</option>
+            <option value="05">文学</option>
+            <option value="06">历史学</option>
+            <option value="07">理学</option>
+            <option value="08">工学</option>
+            <option value="09">农学</option>
+            <option value="10">医学</option>
+            <option value="12">管理学</option>
+            <option value="13">艺术学</option>
+            <option value="14">交叉学科</option>
         </select>
 
         <button id="reset-btn" class="px-4 py-2 text-gray-600 hover:text-gray-800">重置</button>
@@ -53,85 +55,101 @@
 
 {% block extra_js %}
 <script>
-let currentPage = 1;
+    let currentPage = 1;
 
-async function loadSubjects(page = 1) {
-    const search = document.getElementById('search-input').value;
-    const level = document.getElementById('level-filter').value;
-    const category = document.getElementById('category-filter').value;
+    async function loadSubjects(page = 1) {
+        const search = document.getElementById('search-input').value;
+        const level = document.getElementById('level-filter').value;
+        const category = document.getElementById('category-filter').value;
 
-    let url = `/api/subjects/?page=${page}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
-    if (level) url += `&level=${level}`;
-    if (category) url += `&category=${encodeURIComponent(category)}`;
+        let url = `/api/subjects/?page=${page}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (level) url += `&level=${level}`;
+        if (category) url += `&category_code=${category}`;
 
-    try {
-        const data = await apiRequest(url);
-        renderSubjects(data.results);
-        renderPagination(data);
-    } catch (error) {
-        document.getElementById('subject-list').innerHTML = '<div class="loading col-span-full">加载失败</div>';
+        try {
+            const data = await apiRequest(url);
+            renderSubjects(data.results);
+            renderPagination(data);
+        } catch (error) {
+            document.getElementById('subject-list').innerHTML = '<div class="loading col-span-full">加载失败</div>';
+        }
     }
-}
 
-function renderSubjects(subjects) {
+    function renderSubjects(subjects) {
     const container = document.getElementById('subject-list');
     if (subjects.length === 0) {
         container.innerHTML = '<div class="loading col-span-full">没有匹配的学科</div>';
         return;
     }
 
-    container.innerHTML = subjects.map(s => {
-        const levelMap = {first: '一级学科', second: '二级学科', professional: '专业学位'};
-        return `
-            <a href="/subjects/${s.id}/" class="block bg-white rounded-lg p-5 shadow-sm card-hover">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <h3 class="text-lg font-semibold text-gray-800">${s.name}</h3>
-                        <p class="text-sm text-gray-500 mt-1">代码：${s.code}</p>
-                    </div>
-                    <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">${levelMap[s.level] || s.level}</span>
+    container.innerHTML = subjects.map(s => `
+        <a href="/subjects/${s.id}/" class="block bg-white rounded-lg p-5 shadow-sm card-hover">
+            <div class="flex items-start justify-between mb-2">
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-800">${s.name}</h3>
+                    <p class="text-sm text-gray-500 mt-1">代码：${s.code}</p>
                 </div>
-                <div class="mt-3 flex items-center justify-between text-sm">
-                    <span class="text-gray-600">${s.category || '-'}</span>
-                    <span class="text-gray-500">${s.school_count} 所院校</span>
+                <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded whitespace-nowrap ml-2">${s.level_display || s.level}</span>
+            </div>
+            <div class="mt-3 flex items-center justify-between text-sm">
+                <span class="text-gray-600">${s.category_name || '-'}</span>
+                <div class="text-gray-500 text-xs">
+                    <span title="有评级的学校">🏆 ${s.rating_count || 0}</span>
+                    <span class="ml-2" title="录入的招生专业">📚 ${s.major_count || 0}</span>
                 </div>
-            </a>
-        `;
-    }).join('');
+            </div>
+        </a>
+    `).join('');
 }
 
-function renderPagination(data) {
-    const totalPages = Math.ceil(data.count / 20);
-    const container = document.getElementById('pagination');
-    if (totalPages <= 1) { container.innerHTML = ''; return; }
+    function renderPagination(data) {
+        const totalPages = Math.ceil(data.count / 20);
+        const container = document.getElementById('pagination');
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
 
-    container.innerHTML = `
-        <button onclick="changePage(${currentPage-1})" ${!data.previous?'disabled':''}
-            class="px-3 py-1 border rounded ${!data.previous?'opacity-50':'hover:bg-gray-100'}">上一页</button>
+        container.innerHTML = `
+        <button onclick="changePage(${currentPage - 1})" ${!data.previous ? 'disabled' : ''}
+            class="px-3 py-1 border rounded ${!data.previous ? 'opacity-50' : 'hover:bg-gray-100'}">上一页</button>
         <span class="px-3 py-1 text-gray-600">第 ${currentPage} / ${totalPages} 页</span>
-        <button onclick="changePage(${currentPage+1})" ${!data.next?'disabled':''}
-            class="px-3 py-1 border rounded ${!data.next?'opacity-50':'hover:bg-gray-100'}">下一页</button>
+        <button onclick="changePage(${currentPage + 1})" ${!data.next ? 'disabled' : ''}
+            class="px-3 py-1 border rounded ${!data.next ? 'opacity-50' : 'hover:bg-gray-100'}">下一页</button>
     `;
-}
+    }
 
-function changePage(p) { currentPage = p; loadSubjects(p); window.scrollTo(0,0); }
+    function changePage(p) {
+        currentPage = p;
+        loadSubjects(p);
+        window.scrollTo(0, 0);
+    }
 
-let timer;
-document.getElementById('search-input').addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => { currentPage = 1; loadSubjects(1); }, 300);
-});
-document.getElementById('level-filter').addEventListener('change', () => { currentPage = 1; loadSubjects(1); });
-document.getElementById('category-filter').addEventListener('change', () => { currentPage = 1; loadSubjects(1); });
-document.getElementById('reset-btn').addEventListener('click', () => {
-    document.getElementById('search-input').value = '';
-    document.getElementById('level-filter').value = '';
-    document.getElementById('category-filter').value = '';
-    currentPage = 1;
+    let timer;
+    document.getElementById('search-input').addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            currentPage = 1;
+            loadSubjects(1);
+        }, 300);
+    });
+    document.getElementById('level-filter').addEventListener('change', () => {
+        currentPage = 1;
+        loadSubjects(1);
+    });
+    document.getElementById('category-filter').addEventListener('change', () => {
+        currentPage = 1;
+        loadSubjects(1);
+    });
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        document.getElementById('search-input').value = '';
+        document.getElementById('level-filter').value = '';
+        document.getElementById('category-filter').value = '';
+        currentPage = 1;
+        loadSubjects(1);
+    });
+
     loadSubjects(1);
-});
-
-loadSubjects(1);
 </script>
 {% endblock %}

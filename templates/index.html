@@ -4,7 +4,6 @@
 
 {% block content %}
 
-<!-- Hero 搜索区 -->
 <section class="text-center py-12">
     <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
         🎓 考研信息一站查询
@@ -13,13 +12,12 @@
         汇聚各高校研究生院公开数据，助你精准择校
     </p>
 
-    <!-- 大搜索框 -->
     <form action="/search/" method="get" class="max-w-2xl mx-auto">
         <div class="flex shadow-lg rounded-lg overflow-hidden">
             <input
                 type="text"
                 name="q"
-                placeholder="输入院校名称或专业代码..."
+                placeholder="输入院校、学科或专业名称..."
                 class="flex-1 px-6 py-4 text-lg outline-none"
                 autofocus
             >
@@ -29,24 +27,26 @@
         </div>
     </form>
 
-    <!-- 数据统计 -->
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-3xl mx-auto mt-12">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mt-12">
         <div class="bg-white rounded-lg p-6 shadow-sm">
             <div class="text-3xl font-bold text-blue-600">{{ school_count }}</div>
             <div class="text-sm text-gray-500 mt-1">已收录院校</div>
         </div>
         <div class="bg-white rounded-lg p-6 shadow-sm">
             <div class="text-3xl font-bold text-green-600">{{ major_count }}</div>
-            <div class="text-sm text-gray-500 mt-1">专业信息</div>
+            <div class="text-sm text-gray-500 mt-1">招生专业</div>
         </div>
-        <div class="bg-white rounded-lg p-6 shadow-sm col-span-2 md:col-span-1">
-            <div class="text-3xl font-bold text-purple-600">免费</div>
-            <div class="text-sm text-gray-500 mt-1">全部数据公开</div>
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+            <div class="text-3xl font-bold text-purple-600">{{ subject_count }}</div>
+            <div class="text-sm text-gray-500 mt-1">学科目录</div>
+        </div>
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+            <div class="text-3xl font-bold text-orange-600">{{ score_line_count }}</div>
+            <div class="text-sm text-gray-500 mt-1">分数线数据</div>
         </div>
     </div>
 </section>
 
-<!-- 热门院校 -->
 <section class="mt-12">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-gray-800">🔥 热门院校</h2>
@@ -56,21 +56,22 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for school in hot_schools %}
         <a href="/schools/{{ school.id }}/" class="block bg-white rounded-lg p-5 shadow-sm card-hover">
-            <div class="flex items-start justify-between mb-2">
-                <h3 class="text-lg font-semibold text-gray-800">{{ school.name }}</h3>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ school.name }}</h3>
+            <div class="mb-2 flex flex-wrap gap-1">
+                {% if school.is_985 %}<span class="tag-985 px-2 py-0.5 text-xs rounded">985</span>{% endif %}
+                {% if school.is_211 %}<span class="tag-211 px-2 py-0.5 text-xs rounded">211</span>{% endif %}
+                {% if school.is_double_first %}<span class="tag-double px-2 py-0.5 text-xs rounded">双一流</span>{% endif %}
+                {% if school.is_self_scoring %}<span class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">34所</span>{% endif %}
             </div>
-            <div class="mb-2">
-                {% if school.is_985 %}<span class="tag-985 px-2 py-0.5 text-xs rounded mr-1">985</span>{% endif %}
-                {% if school.is_211 %}<span class="tag-211 px-2 py-0.5 text-xs rounded mr-1">211</span>{% endif %}
-                {% if school.is_double_first %}<span class="tag-double px-2 py-0.5 text-xs rounded mr-1">双一流</span>{% endif %}
-            </div>
-            <p class="text-sm text-gray-500">{{ school.province.name }} · 院校代码 {{ school.code }}</p>
+            <p class="text-sm text-gray-500">
+                {{ school.province.name }}
+                {% if school.province_area %} · {{ school.get_province_area_display }}{% endif %}
+            </p>
         </a>
         {% endfor %}
     </div>
 </section>
 
-<!-- 最新公告 -->
 <section class="mt-12">
     <h2 class="text-2xl font-bold text-gray-800 mb-6">📢 最新公告</h2>
     <div id="latest-notices" class="bg-white rounded-lg shadow-sm divide-y">
@@ -82,7 +83,6 @@
 
 {% block extra_js %}
 <script>
-// 加载最新公告
 async function loadLatestNotices() {
     try {
         const data = await apiRequest('/api/notices/?ordering=-publish_date&page_size=5');

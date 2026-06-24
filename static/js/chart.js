@@ -1,10 +1,9 @@
 // ============== ECharts 图表封装 ==============
 
-/**
- * 复试线趋势折线图
- */
 function renderScoreLineChart(containerId, data) {
-    const chart = echarts.init(document.getElementById(containerId));
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const chart = echarts.init(el);
 
     const series = [];
     if (data.total_score && data.total_score.some(v => v !== null)) {
@@ -16,11 +15,11 @@ function renderScoreLineChart(containerId, data) {
     if (data.english && data.english.some(v => v !== null)) {
         series.push({ name: '英语', type: 'line', data: data.english, smooth: true });
     }
-    if (data.math && data.math.some(v => v !== null)) {
-        series.push({ name: '数学', type: 'line', data: data.math, smooth: true });
+    if (data.subject_one && data.subject_one.some(v => v !== null)) {
+        series.push({ name: '业务课一', type: 'line', data: data.subject_one, smooth: true });
     }
-    if (data.professional && data.professional.some(v => v !== null)) {
-        series.push({ name: '专业课', type: 'line', data: data.professional, smooth: true });
+    if (data.subject_two && data.subject_two.some(v => v !== null)) {
+        series.push({ name: '业务课二', type: 'line', data: data.subject_two, smooth: true });
     }
 
     chart.setOption({
@@ -35,11 +34,10 @@ function renderScoreLineChart(containerId, data) {
     return chart;
 }
 
-/**
- * 招生人数柱状图
- */
 function renderEnrollmentChart(containerId, data) {
-    const chart = echarts.init(document.getElementById(containerId));
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const chart = echarts.init(el);
     chart.setOption({
         title: { text: '历年招生计划', left: 'center' },
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -56,11 +54,10 @@ function renderEnrollmentChart(containerId, data) {
     return chart;
 }
 
-/**
- * 推免比例饼图（取最新一年）
- */
 function renderRecommendRatioChart(containerId, data) {
-    const chart = echarts.init(document.getElementById(containerId));
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const chart = echarts.init(el);
     const lastIdx = data.years.length - 1;
     if (lastIdx < 0) return;
 
@@ -68,10 +65,7 @@ function renderRecommendRatioChart(containerId, data) {
     const recommend = data.plan_recommend[lastIdx] || 0;
 
     chart.setOption({
-        title: {
-            text: `${data.years[lastIdx]}年招生构成`,
-            left: 'center'
-        },
+        title: { text: `${data.years[lastIdx]}年招生构成`, left: 'center' },
         tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
         legend: { bottom: 0 },
         series: [{

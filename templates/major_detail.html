@@ -12,28 +12,95 @@
 
 {% block extra_js %}
 <script>
-const majorId = {{ major_id }};
-let majorData = null;
-let trendData = null;
+    const majorId = {{ major_id }};
+    let majorData = null;
+    let trendData = null;
 
-async function loadMajor() {
-    try {
-        majorData = await apiRequest(`/api/majors/${majorId}/`);
-        trendData = await apiRequest(`/api/trends/${majorId}/`);
-        renderMajor();
-    } catch (error) {
-        document.getElementById('major-detail').innerHTML = '<div class="loading">加载失败</div>';
+    async function loadMajor() {
+        try {
+            majorData = await apiRequest(`/api/majors/${majorId}/`);
+            trendData = await apiRequest(`/api/trends/${majorId}/`);
+            renderMajor();
+        } catch (error) {
+            document.getElementById('major-detail').innerHTML = '<div class="loading">加载失败</div>';
+        }
     }
-}
 
-function renderMajor() {
-    const m = majorData;
+    function getRatingClass(rating) {
+        const map = {
+            'A+': 'bg-red-100 text-red-700 border-red-300',
+            'A': 'bg-red-50 text-red-600 border-red-200',
+            'A-': 'bg-orange-100 text-orange-700 border-orange-300',
+            'B+': 'bg-yellow-100 text-yellow-700 border-yellow-300',
+            'B': 'bg-yellow-50 text-yellow-600 border-yellow-200',
+            'B-': 'bg-green-100 text-green-700 border-green-300',
+            'C+': 'bg-blue-100 text-blue-700 border-blue-300',
+            'C': 'bg-blue-50 text-blue-600 border-blue-200',
+            'C-': 'bg-gray-100 text-gray-700 border-gray-300',
+        };
+        return map[rating] || 'bg-gray-100 text-gray-700 border-gray-300';
+    }
 
-    // 复试线表格
-    const scoreLines = m.score_lines || [];
-    let scoreTable = '';
-    if (scoreLines.length > 0) {
-        scoreTable = `
+    function renderMajor() {
+        const m = majorData;
+
+        // 标签
+        let tags = '';
+        if (m.exam_type_display && m.exam_type !== 'unified') {
+            tags += `<span class="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded">${m.exam_type_display}</span>`;
+        } else {
+            tags += `<span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">统考</span>`;
+        }
+        tags += `<span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">${m.learning_type_display}</span>`;
+        tags += `<span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">${m.degree_type_display}</span>`;
+        if (m.doctoral_point_display) {
+            tags += `<span class="px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded">${m.doctoral_point_display}</span>`;
+        }
+
+        // 学科评级
+        let subjectInfoHtml = '';
+        if (m.subject_info) {
+            const info = m.subject_info;
+            subjectInfoHtml = `
+            <div class="mt-4 pt-4 border-t">
+                <div class="flex items-center flex-wrap gap-2">
+                    <strong>所属学科：</strong>
+                    <a href="/subjects/${info.subject_id}/" class="text-blue-600 hover:underline">
+                        ${info.subject_name} (${info.subject_code})
+                    </a>
+                    ${info.subject_category_name ? `<span class="text-sm text-gray-500">${info.subject_category_name}</span>` : ''}
+                </div>
+                ${info.rating ? `
+                <div class="mt-2 flex items-center gap-2">
+                    <strong>本校学科评级：</strong>
+                    <span class="inline-block px-3 py-1 rounded border font-bold ${getRatingClass(info.rating)}">${info.rating}</span>
+                    <span class="text-sm text-gray-500">${info.rating_round_display}</span>
+                </div>` : ''}
+            </div>
+        `;
+        }
+
+        // 研究方向
+        let directionsHtml = '';
+        const years = m.years_available || [];
+        if (years.length > 0) {
+            const yearTabs = years.map((y, idx) => `
+            <button class="year-tab px-3 py-1 rounded ${idx === 0 ? 'bg-blue-600 text-white' : 'bg-gray-100'}" data-year="${y}">${y}年</button>
+        `).join('');
+
+            directionsHtml = `
+            <div class="flex gap-2 mb-4">${yearTabs}</div>
+            <div id="directions-content"></div>
+        `;
+        } else {
+            directionsHtml = '<div class="loading">暂无研究方向数据</div>';
+        }
+
+        // 复试线表格（专业线）
+        const scoreLines = (m.score_lines || []).filter(s => s.score_type === 'major');
+        let scoreTable = '';
+        if (scoreLines.length > 0) {
+            scoreTable = `
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b">
                 <tr>
@@ -41,76 +108,79 @@ function renderMajor() {
                     <th class="px-4 py-2 text-left">总分</th>
                     <th class="px-4 py-2 text-left">政治</th>
                     <th class="px-4 py-2 text-left">英语</th>
-                    <th class="px-4 py-2 text-left">数学</th>
-                    <th class="px-4 py-2 text-left">专业课</th>
+                    <th class="px-4 py-2 text-left">业务课一</th>
+                    <th class="px-4 py-2 text-left">业务课二</th>
                 </tr>
             </thead>
             <tbody class="divide-y">
-                ${scoreLines.map(s => `
+                ${scoreLines.sort((a, b) => b.year - a.year).map(s => `
                     <tr>
                         <td class="px-4 py-2">${s.year}</td>
                         <td class="px-4 py-2 font-medium text-blue-600">${s.total_score}</td>
-                        <td class="px-4 py-2">${s.politics || '-'}</td>
-                        <td class="px-4 py-2">${s.english || '-'}</td>
-                        <td class="px-4 py-2">${s.math || '-'}</td>
-                        <td class="px-4 py-2">${s.professional || '-'}</td>
+                        <td class="px-4 py-2">${s.politics_score ?? '-'}</td>
+                        <td class="px-4 py-2">${s.english_score ?? '-'}</td>
+                        <td class="px-4 py-2">${s.subject_one_score ?? '-'}</td>
+                        <td class="px-4 py-2">${s.subject_two_score ?? '-'}</td>
                     </tr>
                 `).join('')}
             </tbody>
         </table>`;
-    } else {
-        scoreTable = '<div class="loading">暂无复试线数据</div>';
-    }
+        } else {
+            scoreTable = '<div class="loading">暂无专业级复试线数据，可参考学校学科线（在所属学科详情页查看）</div>';
+        }
 
-    // 招生表格
-    const enrollments = m.enrollments || [];
-    let enrollTable = '';
-    if (enrollments.length > 0) {
-        enrollTable = `
+        // 招生表格
+        const enrollments = m.enrollments || [];
+        let enrollTable = '';
+        if (enrollments.length > 0) {
+            enrollTable = `
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b">
                 <tr>
                     <th class="px-4 py-2 text-left">年份</th>
-                    <th class="px-4 py-2 text-left">计划总数</th>
-                    <th class="px-4 py-2 text-left">统考</th>
+                    <th class="px-4 py-2 text-left">计划</th>
                     <th class="px-4 py-2 text-left">推免</th>
-                    <th class="px-4 py-2 text-left">推免比例</th>
+                    <th class="px-4 py-2 text-left">统考</th>
+                    <th class="px-4 py-2 text-left">录取</th>
+                    <th class="px-4 py-2 text-left">报录比</th>
+                    <th class="px-4 py-2 text-left">平均分</th>
                 </tr>
             </thead>
             <tbody class="divide-y">
-                ${enrollments.map(e => `
+                ${enrollments.sort((a, b) => b.year - a.year).map(e => `
                     <tr>
                         <td class="px-4 py-2">${e.year}</td>
-                        <td class="px-4 py-2 font-medium">${e.plan_total || '-'}</td>
-                        <td class="px-4 py-2">${e.plan_exam || '-'}</td>
-                        <td class="px-4 py-2">${e.plan_recommend || '-'}</td>
-                        <td class="px-4 py-2">${e.recommend_ratio ? e.recommend_ratio + '%' : '-'}</td>
+                        <td class="px-4 py-2">${e.plan_total ?? '-'}</td>
+                        <td class="px-4 py-2">${e.plan_recommend ?? '-'}</td>
+                        <td class="px-4 py-2">${e.plan_exam ?? '-'}</td>
+                        <td class="px-4 py-2">${e.actual_total ?? '-'}</td>
+                        <td class="px-4 py-2 ${e.enroll_ratio ? 'text-orange-600 font-medium' : ''}">${e.enroll_ratio ? e.enroll_ratio + ':1' : '-'}</td>
+                        <td class="px-4 py-2 ${e.avg_score ? 'text-blue-600 font-medium' : ''}">${e.avg_score ?? '-'}</td>
                     </tr>
                 `).join('')}
             </tbody>
         </table>`;
-    } else {
-        enrollTable = '<div class="loading">暂无招生数据</div>';
-    }
+        } else {
+            enrollTable = '<div class="loading">暂无招生数据</div>';
+        }
 
-    // 参考书目
-    const books = m.reference_books || [];
-    let booksHtml = '';
-    if (books.length > 0) {
-        booksHtml = '<ul class="space-y-2">' + books.map(b => `
-            <li class="border-b pb-2">
+        // 参考书
+        const books = m.reference_books || [];
+        let booksHtml = '';
+        if (books.length > 0) {
+            booksHtml = books.map(b => `
+            <div class="border-b py-3 last:border-b-0">
                 <div class="font-medium">${b.book_name}</div>
-                <div class="text-sm text-gray-500">
-                    ${b.author || ''} ${b.publisher ? '/ ' + b.publisher : ''}
-                    ${b.exam_subject ? '<span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">' + b.exam_subject + '</span>' : ''}
-                </div>
-            </li>
-        `).join('') + '</ul>';
-    } else {
-        booksHtml = '<div class="loading">暂无参考书目</div>';
-    }
+                ${b.author || b.publisher ? `<div class="text-sm text-gray-500 mt-1">${b.author || ''} ${b.publisher ? '/ ' + b.publisher : ''}</div>` : ''}
+                ${b.raw_text ? `<div class="mt-2 text-sm text-gray-700 whitespace-pre-line bg-gray-50 p-3 rounded">${b.raw_text}</div>` : ''}
+                ${b.year ? `<div class="text-xs text-gray-400 mt-1">适用年份：${b.year}</div>` : ''}
+            </div>
+        `).join('');
+        } else {
+            booksHtml = '<div class="loading">暂无参考书目</div>';
+        }
 
-    document.getElementById('major-detail').innerHTML = `
+        document.getElementById('major-detail').innerHTML = `
         <!-- 基本信息 -->
         <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
             <div class="flex justify-between flex-wrap items-start">
@@ -120,34 +190,46 @@ function renderMajor() {
                         / ${m.college_name}
                     </div>
                     <h1 class="text-3xl font-bold text-gray-800 mb-2">${m.name}</h1>
-                    <div class="flex items-center space-x-3">
+                    <div class="flex items-center flex-wrap gap-2 text-sm">
                         <span class="text-gray-600">专业代码: <strong>${m.code}</strong></span>
-                        <span class="px-2 py-1 text-xs bg-gray-100 rounded">${m.degree_type === 'academic' ? '学术学位' : '专业学位'}</span>
+                        ${tags}
                     </div>
                 </div>
                 <button id="favorite-btn" class="px-4 py-2 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">
                     ⭐ 收藏专业
                 </button>
             </div>
-            ${m.research_direction ? `<div class="mt-4"><strong>研究方向：</strong>${m.research_direction}</div>` : ''}
-            ${m.exam_subjects ? `<div class="mt-2"><strong>考试科目：</strong>${m.exam_subjects}</div>` : ''}
-            ${m.subject_info ? renderSubjectInfo(m.subject_info) : ''}
+            ${subjectInfoHtml}
         </div>
+
+        <!-- 研究方向 -->
+        <section class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🔬 研究方向</h2>
+            ${directionsHtml}
+        </section>
 
         <!-- 复试线 -->
         <section class="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 历年复试分数线</h2>
-            <div id="score-chart" class="chart-container mb-6"></div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 复试分数线</h2>
+            ${scoreLines.length >= 2 ? '<div id="score-chart" class="chart-container mb-6"></div>' :
+            scoreLines.length === 1 ? '<div class="text-sm text-gray-500 mb-4 p-3 bg-blue-50 rounded">📌 暂只有1年数据，无法绘制趋势图</div>' : ''}
             ${scoreTable}
         </section>
 
         <!-- 招生 -->
         <section class="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">👥 历年招生计划</h2>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div id="enrollment-chart" class="chart-container"></div>
-                <div id="recommend-chart" class="chart-container"></div>
-            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">👥 招生计划</h2>
+            ${enrollments.length >= 2 ?
+            '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">' +
+            '<div id="enrollment-chart" class="chart-container"></div>' +
+            '<div id="recommend-chart" class="chart-container"></div>' +
+            '</div>'
+            : enrollments.length === 1 ?
+                '<div class="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">' +
+                '<div class="p-3 bg-blue-50 rounded text-sm text-gray-500">📌 暂只有1年招生数据</div>' +
+                '<div id="recommend-chart" class="chart-container"></div>' +
+                '</div>'
+                : ''}
             ${enrollTable}
         </section>
 
@@ -158,84 +240,81 @@ function renderMajor() {
         </section>
     `;
 
-    // 渲染图表
-    setTimeout(() => {
-        if (trendData.score_lines.years.length > 0) {
-            renderScoreLineChart('score-chart', trendData.score_lines);
-        }
-        if (trendData.enrollments.years.length > 0) {
-            renderEnrollmentChart('enrollment-chart', trendData.enrollments);
-            renderRecommendRatioChart('recommend-chart', trendData.enrollments);
-        }
-    }, 100);
-
-    // 收藏按钮
-    document.getElementById('favorite-btn').addEventListener('click', addFavorite);
-}
-
-function renderSubjectInfo(info) {
-    const ratingHtml = info.rating
-        ? `<span class="inline-block px-3 py-1 rounded border font-bold ${getRatingClassForMajor(info.rating)}">${info.rating}</span>
-           <span class="text-sm text-gray-500 ml-2">${info.rating_round_display}</span>`
-        : '<span class="text-gray-400 text-sm">本校在该学科暂无评级数据</span>';
-
-    return `
-        <div class="mt-4 pt-4 border-t">
-            <div class="flex items-center flex-wrap gap-2">
-                <strong>所属学科：</strong>
-                <a href="/subjects/${info.subject_id}/" class="text-blue-600 hover:underline">
-                    ${info.subject_name} (${info.subject_code})
-                </a>
-                <span class="text-sm text-gray-500">${info.subject_category}</span>
-            </div>
-            <div class="mt-2 flex items-center gap-2">
-                <strong>本校学科评级：</strong>
-                ${ratingHtml}
-            </div>
-        </div>
-    `;
-}
-
-function getRatingClassForMajor(rating) {
-    const map = {
-        'A+': 'bg-red-100 text-red-700 border-red-300',
-        'A': 'bg-red-50 text-red-600 border-red-200',
-        'A-': 'bg-orange-100 text-orange-700 border-orange-300',
-        'B+': 'bg-yellow-100 text-yellow-700 border-yellow-300',
-        'B': 'bg-yellow-50 text-yellow-600 border-yellow-200',
-        'B-': 'bg-green-100 text-green-700 border-green-300',
-        'C+': 'bg-blue-100 text-blue-700 border-blue-300',
-        'C': 'bg-blue-50 text-blue-600 border-blue-200',
-        'C-': 'bg-gray-100 text-gray-700 border-gray-300',
-    };
-    return map[rating] || 'bg-gray-100 text-gray-700 border-gray-300';
-}
-
-async function addFavorite() {
-    try {
-        await apiRequest('/api/user/favorites/', {
-            method: 'POST',
-            body: JSON.stringify({
-                target_type: 'major',
-                major: majorId
-            })
-        });
-        showToast('收藏成功', 'success');
-    } catch (error) {
-        if (error.status === 403 || error.status === 401) {
-            showModal({
-                title: '需要登录',
-                content: '收藏功能需要登录，是否跳转到登录页？',
-                confirmText: '去登录',
-                onConfirm: () => window.location.href = '/login/'
+        // 渲染研究方向
+        if (years.length > 0) {
+            renderDirections(years[0]);
+            document.querySelectorAll('.year-tab').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.year-tab').forEach(b => {
+                        b.classList.remove('bg-blue-600', 'text-white');
+                        b.classList.add('bg-gray-100');
+                    });
+                    e.target.classList.add('bg-blue-600', 'text-white');
+                    e.target.classList.remove('bg-gray-100');
+                    renderDirections(parseInt(e.target.dataset.year));
+                });
             });
-        } else {
-            const msg = error.data?.non_field_errors?.[0] || error.data?.detail || '收藏失败';
-            showToast(msg, 'error');
+        }
+
+        // 渲染图表
+        setTimeout(() => {
+            if (trendData.score_lines.years.length >= 2) {
+                renderScoreLineChart('score-chart', trendData.score_lines);
+            }
+            if (trendData.enrollments.years.length >= 2) {
+                renderEnrollmentChart('enrollment-chart', trendData.enrollments);
+            }
+            // 饼图只要有1年数据就显示
+            if (trendData.enrollments.years.length >= 1) {
+                renderRecommendRatioChart('recommend-chart', trendData.enrollments);
+            }
+        }, 100);
+
+        document.getElementById('favorite-btn').addEventListener('click', addFavorite);
+    }
+
+    function renderDirections(year) {
+        const directions = (majorData.research_directions || []).filter(d => d.year === year);
+        const container = document.getElementById('directions-content');
+        if (directions.length === 0) {
+            container.innerHTML = '<div class="loading">该年份暂无数据</div>';
+            return;
+        }
+        container.innerHTML = directions.map(d => `
+        <div class="border rounded p-4 mb-3">
+            <div class="flex justify-between items-start mb-2">
+                <div class="font-semibold text-gray-800">
+                    ${d.direction_code ? `（${d.direction_code}）` : ''}${d.direction_name}
+                </div>
+                <span class="text-sm text-blue-600 font-medium">招生 ${d.recruit_number ?? '-'} 人</span>
+            </div>
+            ${d.exam_subjects ? `<div class="mt-2 text-sm text-gray-700 whitespace-pre-line bg-gray-50 p-2 rounded">${d.exam_subjects}</div>` : ''}
+            ${d.note ? `<div class="mt-2 text-xs text-gray-500">${d.note}</div>` : ''}
+        </div>
+    `).join('');
+    }
+
+    async function addFavorite() {
+        try {
+            await apiRequest('/api/user/favorites/', {
+                method: 'POST',
+                body: JSON.stringify({target_type: 'major', major: majorId})
+            });
+            showToast('收藏成功', 'success');
+        } catch (error) {
+            if (error.status === 403 || error.status === 401) {
+                showModal({
+                    title: '需要登录',
+                    content: '收藏功能需要登录，是否跳转到登录页？',
+                    confirmText: '去登录',
+                    onConfirm: () => window.location.href = '/login/'
+                });
+            } else {
+                showToast('收藏失败', 'error');
+            }
         }
     }
-}
 
-loadMajor();
+    loadMajor();
 </script>
 {% endblock %}

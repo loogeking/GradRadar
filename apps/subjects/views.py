@@ -12,8 +12,8 @@ class SubjectViewSet(viewsets.ReadOnlyModelViewSet):
     """学科接口"""
     queryset = SubjectCategory.objects.all()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['level', 'category']
-    search_fields = ['code', 'name', 'category']
+    filterset_fields = ['level', 'category_code', 'is_academic', 'is_self_set']
+    search_fields = ['code', 'name', 'category_name']
     ordering_fields = ['code', 'name']
     ordering = ['code']
 

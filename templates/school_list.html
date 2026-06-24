@@ -9,7 +9,6 @@
     <p class="text-gray-600">浏览所有已收录的高校</p>
 </div>
 
-<!-- 筛选区 -->
 <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
     <div class="flex flex-wrap gap-3 items-center">
         <input type="text" id="search-input" placeholder="搜索学校名称..."
@@ -27,16 +26,38 @@
             <option value="normal">普通院校</option>
         </select>
 
+        <select id="type-filter" class="px-3 py-2 border rounded-md">
+            <option value="">全部类型</option>
+            <option value="comprehensive">综合类</option>
+            <option value="science_eng">理工类</option>
+            <option value="normal_edu">师范类</option>
+            <option value="medical">医药类</option>
+            <option value="finance">财经类</option>
+            <option value="political_law">政法类</option>
+            <option value="agriculture">农林类</option>
+            <option value="art">艺术类</option>
+            <option value="language">语言类</option>
+        </select>
+
+        <select id="area-filter" class="px-3 py-2 border rounded-md">
+            <option value="">全部区域</option>
+            <option value="A">A区</option>
+            <option value="B">B区</option>
+        </select>
+
+        <label class="flex items-center text-sm gap-1">
+            <input type="checkbox" id="self-scoring-filter">
+            <span>仅看34所自划线</span>
+        </label>
+
         <button id="reset-btn" class="px-4 py-2 text-gray-600 hover:text-gray-800">重置</button>
     </div>
 </div>
 
-<!-- 学校列表 -->
 <div id="school-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     <div class="loading col-span-full">加载中...</div>
 </div>
 
-<!-- 分页 -->
 <div id="pagination" class="flex justify-center items-center space-x-2 mt-8"></div>
 
 {% endblock %}
@@ -60,11 +81,17 @@ async function loadSchools(page = 1) {
     const search = document.getElementById('search-input').value;
     const province = document.getElementById('province-filter').value;
     const level = document.getElementById('level-filter').value;
+    const schoolType = document.getElementById('type-filter').value;
+    const area = document.getElementById('area-filter').value;
+    const selfScoring = document.getElementById('self-scoring-filter').checked;
 
     let url = `/api/schools/?page=${page}`;
     if (search) url += `&search=${encodeURIComponent(search)}`;
     if (province) url += `&province=${province}`;
     if (level) url += `&level=${level}`;
+    if (schoolType) url += `&school_type=${schoolType}`;
+    if (area) url += `&province_area=${area}`;
+    if (selfScoring) url += `&is_self_scoring=true`;
 
     try {
         const data = await apiRequest(url);
@@ -86,8 +113,15 @@ function renderSchools(schools) {
     container.innerHTML = schools.map(s => `
         <a href="/schools/${s.id}/" class="block bg-white rounded-lg p-5 shadow-sm card-hover">
             <h3 class="text-lg font-semibold text-gray-800 mb-2">${s.name}</h3>
-            <div class="mb-2">${getSchoolTags(s)}</div>
-            <p class="text-sm text-gray-500">${s.province_name} · 院校代码 ${s.code || '-'}</p>
+            <div class="mb-2 flex flex-wrap gap-1">
+                ${getSchoolTags(s)}
+                ${s.is_self_scoring ? '<span class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">34所</span>' : ''}
+            </div>
+            <p class="text-sm text-gray-500">
+                ${s.province_name}
+                ${s.province_area_display ? ' · ' + s.province_area_display : ''}
+                ${s.school_type_display ? ' · ' + s.school_type_display : ''}
+            </p>
         </a>
     `).join('');
 }
@@ -95,19 +129,12 @@ function renderSchools(schools) {
 function renderPagination(data) {
     const totalPages = Math.ceil(data.count / 20);
     const container = document.getElementById('pagination');
-
-    if (totalPages <= 1) {
-        container.innerHTML = '';
-        return;
-    }
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
 
     let html = '';
-    // 上一页
     html += `<button onclick="changePage(${currentPage - 1})" ${!data.previous ? 'disabled' : ''}
               class="px-3 py-1 border rounded ${!data.previous ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}">上一页</button>`;
-    // 页码
-    html += `<span class="px-3 py-1 text-gray-600">第 ${currentPage} / ${totalPages} 页</span>`;
-    // 下一页
+    html += `<span class="px-3 py-1 text-gray-600">第 ${currentPage} / ${totalPages} 页 (共 ${data.count} 所)</span>`;
     html += `<button onclick="changePage(${currentPage + 1})" ${!data.next ? 'disabled' : ''}
               class="px-3 py-1 border rounded ${!data.next ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}">下一页</button>`;
 
@@ -120,28 +147,29 @@ function changePage(page) {
     window.scrollTo(0, 0);
 }
 
-// 防抖
 let debounceTimer;
 function debounce(fn, delay = 300) {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(fn, delay);
 }
 
-// 事件绑定
 document.getElementById('search-input').addEventListener('input', () => {
     debounce(() => { currentPage = 1; loadSchools(1); });
 });
-document.getElementById('province-filter').addEventListener('change', () => { currentPage = 1; loadSchools(1); });
-document.getElementById('level-filter').addEventListener('change', () => { currentPage = 1; loadSchools(1); });
+['province-filter', 'level-filter', 'type-filter', 'area-filter', 'self-scoring-filter'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => { currentPage = 1; loadSchools(1); });
+});
 document.getElementById('reset-btn').addEventListener('click', () => {
     document.getElementById('search-input').value = '';
     document.getElementById('province-filter').value = '';
     document.getElementById('level-filter').value = '';
+    document.getElementById('type-filter').value = '';
+    document.getElementById('area-filter').value = '';
+    document.getElementById('self-scoring-filter').checked = false;
     currentPage = 1;
     loadSchools(1);
 });
 
-// 初始化
 loadProvinces();
 loadSchools(1);
 </script>
