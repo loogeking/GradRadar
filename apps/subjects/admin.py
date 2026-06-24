@@ -4,9 +4,13 @@ from .models import SubjectCategory, SubjectRating
 
 @admin.register(SubjectCategory)
 class SubjectCategoryAdmin(admin.ModelAdmin):
-    list_display = ['id', 'code', 'name', 'category', 'level', 'parent']
-    list_filter = ['level', 'category']
-    search_fields = ['code', 'name', 'category']
+    list_display = [
+        'id', 'code', 'name', 'level', 'category_name',
+        'is_academic', 'is_self_set', 'parent'
+    ]
+    list_filter = ['level', 'category_code', 'is_academic', 'is_self_set']
+    search_fields = ['code', 'name', 'category_name']
+    autocomplete_fields = ['parent']
 
 
 @admin.register(SubjectRating)

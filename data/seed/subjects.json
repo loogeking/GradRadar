@@ -1,62 +1,40 @@
 [
-  {
-    "code": "0812",
-    "name": "计算机科学与技术",
-    "category": "工学",
-    "level": "first"
-  },
-  {
-    "code": "0835",
-    "name": "软件工程",
-    "category": "工学",
-    "level": "first"
-  },
-  {
-    "code": "0839",
-    "name": "网络空间安全",
-    "category": "工学",
-    "level": "first"
-  },
-  {
-    "code": "0810",
-    "name": "信息与通信工程",
-    "category": "工学",
-    "level": "first"
-  },
-  {
-    "code": "0811",
-    "name": "控制科学与工程",
-    "category": "工学",
-    "level": "first"
-  },
-  {
-    "code": "0809",
-    "name": "电子科学与技术",
-    "category": "工学",
-    "level": "first"
-  },
-  {
-    "code": "0701",
-    "name": "数学",
-    "category": "理学",
-    "level": "first"
-  },
-  {
-    "code": "0714",
-    "name": "统计学",
-    "category": "理学",
-    "level": "first"
-  },
-  {
-    "code": "0854",
-    "name": "电子信息",
-    "category": "工学",
-    "level": "professional"
-  },
-  {
-    "code": "0852",
-    "name": "工程",
-    "category": "工学",
-    "level": "professional"
-  }
+  {"code": "01", "name": "哲学", "level": "category", "category_code": "01", "category_name": "哲学", "is_academic": true},
+  {"code": "02", "name": "经济学", "level": "category", "category_code": "02", "category_name": "经济学", "is_academic": true},
+  {"code": "03", "name": "法学", "level": "category", "category_code": "03", "category_name": "法学", "is_academic": true},
+  {"code": "04", "name": "教育学", "level": "category", "category_code": "04", "category_name": "教育学", "is_academic": true},
+  {"code": "05", "name": "文学", "level": "category", "category_code": "05", "category_name": "文学", "is_academic": true},
+  {"code": "06", "name": "历史学", "level": "category", "category_code": "06", "category_name": "历史学", "is_academic": true},
+  {"code": "07", "name": "理学", "level": "category", "category_code": "07", "category_name": "理学", "is_academic": true},
+  {"code": "08", "name": "工学", "level": "category", "category_code": "08", "category_name": "工学", "is_academic": true},
+  {"code": "09", "name": "农学", "level": "category", "category_code": "09", "category_name": "农学", "is_academic": true},
+  {"code": "10", "name": "医学", "level": "category", "category_code": "10", "category_name": "医学", "is_academic": true},
+  {"code": "12", "name": "管理学", "level": "category", "category_code": "12", "category_name": "管理学", "is_academic": true},
+  {"code": "13", "name": "艺术学", "level": "category", "category_code": "13", "category_name": "艺术学", "is_academic": true},
+  {"code": "14", "name": "交叉学科", "level": "category", "category_code": "14", "category_name": "交叉学科", "is_academic": true},
+
+  {"code": "0701", "name": "数学", "level": "first_class", "parent_code": "07", "category_code": "07", "category_name": "理学", "is_academic": true},
+  {"code": "0714", "name": "统计学", "level": "first_class", "parent_code": "07", "category_code": "07", "category_name": "理学", "is_academic": true},
+
+  {"code": "0809", "name": "电子科学与技术", "level": "first_class", "parent_code": "08", "category_code": "08", "category_name": "工学", "is_academic": true},
+  {"code": "0810", "name": "信息与通信工程", "level": "first_class", "parent_code": "08", "category_code": "08", "category_name": "工学", "is_academic": true},
+  {"code": "0811", "name": "控制科学与工程", "level": "first_class", "parent_code": "08", "category_code": "08", "category_name": "工学", "is_academic": true},
+  {"code": "0812", "name": "计算机科学与技术", "level": "first_class", "parent_code": "08", "category_code": "08", "category_name": "工学", "is_academic": true},
+  {"code": "0835", "name": "软件工程", "level": "first_class", "parent_code": "08", "category_code": "08", "category_name": "工学", "is_academic": true},
+  {"code": "0839", "name": "网络空间安全", "level": "first_class", "parent_code": "08", "category_code": "08", "category_name": "工学", "is_academic": true},
+
+  {"code": "081201", "name": "计算机系统结构", "level": "second_class", "parent_code": "0812", "category_code": "08", "category_name": "工学", "is_academic": true},
+  {"code": "081202", "name": "计算机软件与理论", "level": "second_class", "parent_code": "0812", "category_code": "08", "category_name": "工学", "is_academic": true},
+  {"code": "081203", "name": "计算机应用技术", "level": "second_class", "parent_code": "0812", "category_code": "08", "category_name": "工学", "is_academic": true},
+
+  {"code": "0854", "name": "电子信息", "level": "professional_category", "parent_code": "08", "category_code": "08", "category_name": "工学", "is_academic": false},
+  {"code": "0855", "name": "机械", "level": "professional_category", "parent_code": "08", "category_code": "08", "category_name": "工学", "is_academic": false},
+  {"code": "0856", "name": "材料与化工", "level": "professional_category", "parent_code": "08", "category_code": "08", "category_name": "工学", "is_academic": false},
+
+  {"code": "085400", "name": "电子信息", "level": "professional_field", "parent_code": "0854", "category_code": "08", "category_name": "工学", "is_academic": false},
+  {"code": "085404", "name": "计算机技术", "level": "professional_field", "parent_code": "0854", "category_code": "08", "category_name": "工学", "is_academic": false},
+  {"code": "085405", "name": "软件工程", "level": "professional_field", "parent_code": "0854", "category_code": "08", "category_name": "工学", "is_academic": false},
+  {"code": "085410", "name": "人工智能", "level": "professional_field", "parent_code": "0854", "category_code": "08", "category_name": "工学", "is_academic": false},
+  {"code": "085411", "name": "大数据技术与工程", "level": "professional_field", "parent_code": "0854", "category_code": "08", "category_name": "工学", "is_academic": false},
+  {"code": "085412", "name": "网络与信息安全", "level": "professional_field", "parent_code": "0854", "category_code": "08", "category_name": "工学", "is_academic": false}
 ]
