@@ -9,7 +9,7 @@
     <p class="text-gray-600">最多可同时对比5个专业的复试线和招生情况</p>
 </div>
 
-<!-- 添加方式：搜索 + 从收藏选 -->
+<!-- 添加方式 -->
 <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
     <div class="flex gap-3 items-center">
         <div class="flex-1 relative">
@@ -61,10 +61,10 @@
 {% block extra_js %}
 <script>
 let selectedMajors = [];
-let favoriteMajors = [];  // 用户的收藏列表
-let favSelectedIds = new Set();  // 弹窗中临时选中的
+let favoriteMajors = [];
+let favSelectedIds = new Set();
 
-// ==================== 搜索添加 ====================
+// ============ 搜索添加 ============
 async function searchMajors(keyword) {
     if (!keyword.trim()) {
         document.getElementById('search-suggestions').classList.add('hidden');
@@ -78,10 +78,17 @@ async function searchMajors(keyword) {
         } else {
             container.innerHTML = data.results.map(m => {
                 const fullName = m.full_name || `${m.school_name} - ${m.college_name} - ${m.name}`;
+                let tags = '';
+                if (m.exam_type_display && m.exam_type !== 'unified') {
+                    tags += `<span class="ml-1 px-1 py-0.5 text-xs bg-orange-100 text-orange-700 rounded">${m.exam_type_display}</span>`;
+                }
+                if (m.learning_type && m.learning_type !== 'full_time') {
+                    tags += `<span class="ml-1 px-1 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">${m.learning_type_display}</span>`;
+                }
                 return `
                     <div class="p-3 hover:bg-gray-100 cursor-pointer" onclick='addMajor(${m.id}, ${JSON.stringify(fullName)})'>
                         <div class="text-xs text-gray-500">${m.school_name} · ${m.college_name}</div>
-                        <div class="font-medium">${m.name} <span class="text-gray-400 text-sm">(${m.code})</span></div>
+                        <div class="font-medium">${m.name} <span class="text-gray-400 text-sm">(${m.code})</span>${tags}</div>
                     </div>
                 `;
             }).join('');
@@ -126,7 +133,7 @@ function renderSelected() {
     document.getElementById('compare-btn').disabled = selectedMajors.length < 2;
 }
 
-// ==================== 从收藏选择 ====================
+// ============ 从收藏选择 ============
 async function openFavoritesModal() {
     document.getElementById('favorites-modal').classList.remove('hidden');
     favSelectedIds.clear();
@@ -155,13 +162,20 @@ function renderFavMajorList() {
     container.innerHTML = favoriteMajors.map(f => {
         const isAlreadyAdded = selectedMajors.find(m => m.id === f.major);
         const fullName = f.major_full_name || f.major_name;
+        let tags = '';
+        if (f.major_exam_type_display && f.major_exam_type_display !== '统考') {
+            tags += `<span class="ml-1 px-1 py-0.5 text-xs bg-orange-100 text-orange-700 rounded">${f.major_exam_type_display}</span>`;
+        }
+        if (f.major_learning_type_display && f.major_learning_type_display !== '全日制') {
+            tags += `<span class="ml-1 px-1 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">${f.major_learning_type_display}</span>`;
+        }
         return `
             <label class="flex items-start p-3 border rounded hover:bg-gray-50 cursor-pointer ${isAlreadyAdded ? 'opacity-50' : ''}">
                 <input type="checkbox" class="fav-checkbox mr-3 mt-1" value="${f.major}"
                        data-name="${fullName}" ${isAlreadyAdded ? 'disabled' : ''}>
                 <div class="flex-1 min-w-0">
                     <div class="text-xs text-gray-500">${f.major_school_name} · ${f.major_college_name}</div>
-                    <div class="font-medium">${f.major_name} <span class="text-gray-400 text-sm">(${f.major_code})</span></div>
+                    <div class="font-medium">${f.major_name} <span class="text-gray-400 text-sm">(${f.major_code})</span>${tags}</div>
                     ${isAlreadyAdded ? '<div class="text-xs text-gray-400 mt-1">已在对比列表中</div>' : ''}
                 </div>
             </label>
@@ -206,7 +220,7 @@ function addFromFavorites() {
     showToast(`已添加 ${favSelectedIds.size} 个专业`, 'success');
 }
 
-// ==================== 对比 ====================
+// ============ 对比 ============
 async function doCompare() {
     const ids = selectedMajors.map(m => m.id).join(',');
     try {
@@ -218,8 +232,11 @@ async function doCompare() {
 }
 
 function renderCompareResult(majors) {
+    // 收集年份（只看专业线）
     const allYears = new Set();
-    majors.forEach(m => (m.score_lines || []).forEach(s => allYears.add(s.year)));
+    majors.forEach(m => {
+        (m.score_lines || []).filter(s => s.score_type === 'major').forEach(s => allYears.add(s.year));
+    });
     const years = Array.from(allYears).sort();
 
     const scoreSeries = majors.map(m => ({
@@ -227,15 +244,16 @@ function renderCompareResult(majors) {
         type: 'line',
         smooth: true,
         data: years.map(y => {
-            const s = (m.score_lines || []).find(s => s.year === y);
+            const s = (m.score_lines || []).find(s => s.score_type === 'major' && s.year === y);
             return s ? s.total_score : null;
         }),
     }));
 
     document.getElementById('compare-result').innerHTML = `
         <section class="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4">📊 复试线对比</h2>
-            <div id="compare-score-chart" class="chart-container"></div>
+            <h2 class="text-2xl font-bold mb-4">📊 专业线对比</h2>
+            ${years.length >= 2 ? '<div id="compare-score-chart" class="chart-container"></div>' :
+              '<div class="text-sm text-gray-500 p-3 bg-blue-50 rounded">📌 所选专业的可对比年份不足，无法绘制趋势图</div>'}
         </section>
 
         <section class="bg-white rounded-lg shadow-sm p-6">
@@ -250,18 +268,29 @@ function renderCompareResult(majors) {
                     </thead>
                     <tbody class="divide-y">
                         <tr><td class="px-3 py-2 font-medium">专业代码</td>${majors.map(m => `<td class="px-3 py-2">${m.code}</td>`).join('')}</tr>
-                        <tr><td class="px-3 py-2 font-medium">学位类型</td>${majors.map(m => `<td class="px-3 py-2">${m.degree_type === 'academic' ? '学硕' : '专硕'}</td>`).join('')}</tr>
-                        <tr><td class="px-3 py-2 font-medium">最新复试线</td>${majors.map(m => {
-                            const latest = (m.score_lines || []).sort((a,b) => b.year - a.year)[0];
+                        <tr><td class="px-3 py-2 font-medium">学位类型</td>${majors.map(m => `<td class="px-3 py-2">${m.degree_type_display || '-'}</td>`).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">学习方式</td>${majors.map(m => `<td class="px-3 py-2">${m.learning_type_display || '-'}</td>`).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">考试类型</td>${majors.map(m => `<td class="px-3 py-2">${m.exam_type_display || '-'}</td>`).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">学位点</td>${majors.map(m => `<td class="px-3 py-2">${m.doctoral_point_display || '-'}</td>`).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">学科评级</td>${majors.map(m => {
+                            const r = m.subject_info?.rating;
+                            return `<td class="px-3 py-2">${r ? '<span class="px-2 py-0.5 rounded bg-red-50 text-red-700">' + r + '</span>' : '-'}</td>`;
+                        }).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">最新专业线</td>${majors.map(m => {
+                            const latest = (m.score_lines || []).filter(s => s.score_type === 'major').sort((a,b) => b.year - a.year)[0];
                             return `<td class="px-3 py-2 text-blue-600 font-medium">${latest ? latest.total_score + '分(' + latest.year + ')' : '-'}</td>`;
                         }).join('')}</tr>
                         <tr><td class="px-3 py-2 font-medium">最新招生计划</td>${majors.map(m => {
                             const latest = (m.enrollments || []).sort((a,b) => b.year - a.year)[0];
-                            return `<td class="px-3 py-2">${latest ? latest.plan_total + '人' : '-'}</td>`;
+                            return `<td class="px-3 py-2">${latest && latest.plan_total ? latest.plan_total + '人' : '-'}</td>`;
                         }).join('')}</tr>
                         <tr><td class="px-3 py-2 font-medium">推免比例</td>${majors.map(m => {
                             const latest = (m.enrollments || []).sort((a,b) => b.year - a.year)[0];
                             return `<td class="px-3 py-2">${latest && latest.recommend_ratio ? latest.recommend_ratio + '%' : '-'}</td>`;
+                        }).join('')}</tr>
+                        <tr><td class="px-3 py-2 font-medium">报录比</td>${majors.map(m => {
+                            const latest = (m.enrollments || []).sort((a,b) => b.year - a.year)[0];
+                            return `<td class="px-3 py-2 text-orange-600">${latest && latest.enroll_ratio ? latest.enroll_ratio + ':1' : '-'}</td>`;
                         }).join('')}</tr>
                     </tbody>
                 </table>
@@ -269,20 +298,22 @@ function renderCompareResult(majors) {
         </section>
     `;
 
-    setTimeout(() => {
-        const chart = echarts.init(document.getElementById('compare-score-chart'));
-        chart.setOption({
-            tooltip: { trigger: 'axis' },
-            legend: { bottom: 0, type: 'scroll' },
-            grid: { left: '3%', right: '4%', bottom: '20%', containLabel: true },
-            xAxis: { type: 'category', data: years.map(y => y + '年') },
-            yAxis: { type: 'value', name: '分数' },
-            series: scoreSeries
-        });
-    }, 100);
+    if (years.length >= 2) {
+        setTimeout(() => {
+            const chart = echarts.init(document.getElementById('compare-score-chart'));
+            chart.setOption({
+                tooltip: { trigger: 'axis' },
+                legend: { bottom: 0, type: 'scroll' },
+                grid: { left: '3%', right: '4%', bottom: '20%', containLabel: true },
+                xAxis: { type: 'category', data: years.map(y => y + '年') },
+                yAxis: { type: 'value', name: '分数' },
+                series: scoreSeries
+            });
+        }, 100);
+    }
 }
 
-// ==================== 事件绑定 ====================
+// ============ 事件绑定 ============
 let timer;
 document.getElementById('major-search').addEventListener('input', (e) => {
     clearTimeout(timer);

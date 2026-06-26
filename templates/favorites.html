@@ -11,7 +11,7 @@
 </div>
 
 <div id="favorites-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <!-- 左侧：院校 -->
+    <!-- 左：院校 -->
     <section class="bg-white rounded-lg shadow-sm p-5">
         <div class="flex items-center justify-between mb-4 pb-3 border-b">
             <h2 class="text-xl font-bold text-gray-800">
@@ -24,7 +24,7 @@
         </div>
     </section>
 
-    <!-- 右侧：专业 -->
+    <!-- 右：专业 -->
     <section class="bg-white rounded-lg shadow-sm p-5">
         <div class="flex items-center justify-between mb-4 pb-3 border-b">
             <h2 class="text-xl font-bold text-gray-800">
@@ -45,7 +45,6 @@
 <script>
 async function loadFavorites() {
     try {
-        // 一次获取所有收藏（接口最大可能分页，这里把 page_size 调大）
         const data = await apiRequest('/api/user/favorites/?page_size=200');
         const items = data.results || [];
 
@@ -74,7 +73,6 @@ function renderSchoolFavorites(schools) {
         container.innerHTML = '<div class="text-gray-400 text-sm text-center py-6">还没有收藏院校<br><a href="/schools/" class="text-blue-600 hover:underline">去浏览院校 →</a></div>';
         return;
     }
-
     container.innerHTML = schools.map(f => `
         <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded border">
             <a href="/schools/${f.school}/" class="flex-1 text-gray-800 hover:text-blue-600">
@@ -92,17 +90,31 @@ function renderMajorFavorites(majors) {
         container.innerHTML = '<div class="text-gray-400 text-sm text-center py-6">还没有收藏专业<br><a href="/subjects/" class="text-blue-600 hover:underline">去浏览专业 →</a></div>';
         return;
     }
+    container.innerHTML = majors.map(f => {
+        // 标签：考试类型 + 学习方式（仅在非默认时显示）
+        let tagsHtml = '';
+        if (f.major_exam_type_display && f.major_exam_type_display !== '统考') {
+            tagsHtml += `<span class="ml-1 px-1.5 py-0.5 text-xs bg-orange-100 text-orange-700 rounded">${f.major_exam_type_display}</span>`;
+        }
+        if (f.major_learning_type_display && f.major_learning_type_display !== '全日制') {
+            tagsHtml += `<span class="ml-1 px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">${f.major_learning_type_display}</span>`;
+        }
 
-    container.innerHTML = majors.map(f => `
+        return `
         <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded border">
             <a href="/majors/${f.major}/" class="flex-1 text-gray-800 hover:text-blue-600 min-w-0">
                 <div class="text-xs text-gray-500 truncate">${f.major_school_name} · ${f.major_college_name}</div>
-                <div class="font-medium truncate">${f.major_name} <span class="text-gray-400 text-sm">(${f.major_code})</span></div>
+                <div class="font-medium truncate">
+                    ${f.major_name}
+                    <span class="text-gray-400 text-sm">(${f.major_code})</span>
+                    ${tagsHtml}
+                </div>
                 <div class="text-xs text-gray-400 mt-0.5">${formatDate(f.created_at)}</div>
             </a>
             <button onclick="removeFavorite(${f.id})" class="text-red-500 hover:text-red-700 text-sm px-2 py-1 ml-2">删除</button>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function formatDate(iso) {

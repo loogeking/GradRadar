@@ -12,7 +12,9 @@
 
 {% block extra_js %}
 <script>
+{# @formatter:off #}
 const subjectId = {{ subject_id }};
+{# @formatter:on #}
 
 async function loadSubject() {
     try {
@@ -42,7 +44,7 @@ function render(s) {
     const ratings = s.ratings || [];
     const majorsByschool = s.majors_by_school || [];
 
-    // ===== 评级区 =====
+    // 评级区
     const groups = {};
     ratings.forEach(r => {
         if (!groups[r.rating]) groups[r.rating] = [];
@@ -64,10 +66,11 @@ function render(s) {
                     ${groups[r].map(item => `
                         <a href="/schools/${item.school_id}/" class="block bg-white p-3 rounded border hover:shadow-md transition">
                             <div class="font-medium text-gray-800">${item.school_name}</div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                ${item.school_province}
-                                ${item.school_is_985 ? '<span class="ml-1 tag-985 px-1 rounded">985</span>' : ''}
-                                ${item.school_is_211 ? '<span class="ml-1 tag-211 px-1 rounded">211</span>' : ''}
+                            <div class="text-xs text-gray-500 mt-1 flex flex-wrap gap-1">
+                                <span>${item.school_province}</span>
+                                ${item.school_is_985 ? '<span class="tag-985 px-1 rounded">985</span>' : ''}
+                                ${item.school_is_211 ? '<span class="tag-211 px-1 rounded">211</span>' : ''}
+                                ${item.school_is_self_scoring ? '<span class="px-1 rounded bg-red-100 text-red-700">34所</span>' : ''}
                             </div>
                         </a>
                     `).join('')}
@@ -76,14 +79,14 @@ function render(s) {
         `).join('');
     }
 
-    // ===== 招生专业区 =====
+    // 招生专业区
     let majorsHtml = '';
     if (majorsByschool.length === 0) {
         majorsHtml = '<div class="loading">暂无招生专业数据<br><span class="text-xs text-gray-400">（学科评级与招生专业是两套数据，部分学校只录入了评级）</span></div>';
     } else {
         majorsHtml = majorsByschool.map(school => `
             <div class="border rounded-lg p-4 mb-3 bg-white">
-                <div class="flex items-center justify-between mb-3 pb-2 border-b">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b flex-wrap gap-2">
                     <a href="/schools/${school.school_id}/" class="font-semibold text-gray-800 hover:text-blue-600">
                         ${school.school_name}
                     </a>
@@ -91,18 +94,29 @@ function render(s) {
                         <span class="text-gray-500">${school.school_province}</span>
                         ${school.school_is_985 ? '<span class="tag-985 px-1 rounded">985</span>' : ''}
                         ${school.school_is_211 ? '<span class="tag-211 px-1 rounded">211</span>' : ''}
+                        ${school.school_is_self_scoring ? '<span class="px-1 rounded bg-red-100 text-red-700">34所</span>' : ''}
                         ${school.rating ? `<span class="px-2 py-0.5 rounded border font-bold ${getRatingClass(school.rating)}">${school.rating}</span>` : ''}
                     </div>
                 </div>
                 <div class="space-y-1">
-                    ${school.majors.map(m => `
+                    ${school.majors.map(m => {
+                        let tags = '';
+                        if (m.exam_type_display && m.exam_type !== 'unified') {
+                            tags += `<span class="ml-1 px-1 py-0.5 text-xs bg-orange-100 text-orange-700 rounded">${m.exam_type_display}</span>`;
+                        }
+                        if (m.learning_type && m.learning_type !== 'full_time') {
+                            tags += `<span class="ml-1 px-1 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">${m.learning_type_display}</span>`;
+                        }
+                        return `
                         <a href="/majors/${m.major_id}/" class="block p-2 hover:bg-gray-50 rounded text-sm">
                             <span class="text-blue-600 hover:underline">${m.major_name}</span>
                             <span class="text-gray-400 ml-1">(${m.major_code})</span>
                             <span class="ml-2 px-1.5 py-0.5 text-xs bg-gray-100 rounded">${m.degree_type_display}</span>
+                            ${tags}
                             <span class="text-xs text-gray-500 ml-2">${m.college_name}</span>
                         </a>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </div>
             </div>
         `).join('');
@@ -113,10 +127,11 @@ function render(s) {
             <div class="flex items-start justify-between flex-wrap">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-800 mb-2">${s.name}</h1>
-                    <div class="flex items-center space-x-3 text-gray-600">
+                    <div class="flex items-center space-x-3 text-gray-600 flex-wrap gap-2">
                         <span>学科代码：<strong>${s.code}</strong></span>
-                        <span>门类：${s.category || '-'}</span>
+                        <span>门类：${s.category_name || '-'}</span>
                         <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">${s.level_display || s.level}</span>
+                        ${s.is_self_set ? '<span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">自设</span>' : ''}
                     </div>
                 </div>
                 <div class="text-right">
@@ -127,15 +142,13 @@ function render(s) {
             ${s.description ? `<p class="mt-4 text-gray-700">${s.description}</p>` : ''}
         </div>
 
-        <!-- 提示卡片 -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-gray-700">
             <strong>💡 数据说明：</strong>
-            "学科评级" 是教育部对各校学科实力的官方评估；
-            "招生专业" 是该学科下各院校具体招生的硕士专业，含复试线和招生计划。
+            "学科评级"是教育部对各校学科实力的官方评估；
+            "招生专业"是该学科下各院校具体招生的硕士专业，含复试线和招生计划。
             两者是独立的数据维度。
         </div>
 
-        <!-- 学科评级 -->
         <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">
                 🏆 学科评级
@@ -144,7 +157,6 @@ function render(s) {
             ${ratingsHtml}
         </div>
 
-        <!-- 招生专业 -->
         <div class="bg-white rounded-lg shadow-sm p-6">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">
                 📚 招生专业

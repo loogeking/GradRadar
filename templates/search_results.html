@@ -6,24 +6,32 @@
 
 <div class="mb-6">
     <form action="/search/" method="get" class="flex shadow-sm rounded-lg overflow-hidden max-w-2xl">
-        <input type="text" name="q" value="{{ keyword }}" placeholder="输入院校或专业..."
+        <input type="text" name="q" value="{{ keyword }}" placeholder="输入院校、学科或专业..."
                class="flex-1 px-4 py-2 outline-none">
         <button class="px-6 bg-blue-600 text-white">搜索</button>
     </form>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- 学校结果 -->
     <section>
-        <h2 class="text-xl font-bold mb-3">🏫 院校结果</h2>
+        <h2 class="text-xl font-bold mb-3">🏫 院校</h2>
         <div id="school-results" class="space-y-3">
+            <div class="loading">加载中...</div>
+        </div>
+    </section>
+
+    <!-- 学科结果 -->
+    <section>
+        <h2 class="text-xl font-bold mb-3">📚 学科</h2>
+        <div id="subject-results" class="space-y-3">
             <div class="loading">加载中...</div>
         </div>
     </section>
 
     <!-- 专业结果 -->
     <section>
-        <h2 class="text-xl font-bold mb-3">📖 专业结果</h2>
+        <h2 class="text-xl font-bold mb-3">📖 招生专业</h2>
         <div id="major-results" class="space-y-3">
             <div class="loading">加载中...</div>
         </div>
@@ -34,11 +42,17 @@
 
 {% block extra_js %}
 <script>
+{# @formatter:off #}
 const keyword = "{{ keyword|escapejs }}";
+{# @formatter:on #}
 
 async function searchSchools() {
+    if (!keyword) {
+        document.getElementById('school-results').innerHTML = '<div class="loading">请输入搜索词</div>';
+        return;
+    }
     try {
-        const data = await apiRequest(`/api/schools/?search=${encodeURIComponent(keyword)}`);
+        const data = await apiRequest(`/api/schools/?search=${encodeURIComponent(keyword)}&page_size=10`);
         const container = document.getElementById('school-results');
         if (data.results.length === 0) {
             container.innerHTML = '<div class="loading">无匹配院校</div>';
@@ -47,7 +61,10 @@ async function searchSchools() {
         container.innerHTML = data.results.map(s => `
             <a href="/schools/${s.id}/" class="block bg-white rounded p-4 shadow-sm card-hover">
                 <div class="font-semibold">${s.name}</div>
-                <div class="mt-1">${getSchoolTags(s)}</div>
+                <div class="mt-1 flex flex-wrap gap-1">
+                    ${getSchoolTags(s)}
+                    ${s.is_self_scoring ? '<span class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">34所</span>' : ''}
+                </div>
                 <div class="text-sm text-gray-500 mt-1">${s.province_name}</div>
             </a>
         `).join('');
@@ -56,20 +73,56 @@ async function searchSchools() {
     }
 }
 
-async function searchMajors() {
+async function searchSubjects() {
+    if (!keyword) {
+        document.getElementById('subject-results').innerHTML = '';
+        return;
+    }
     try {
-        const data = await apiRequest(`/api/majors/?search=${encodeURIComponent(keyword)}`);
+        const data = await apiRequest(`/api/subjects/?search=${encodeURIComponent(keyword)}&page_size=10`);
+        const container = document.getElementById('subject-results');
+        if (data.results.length === 0) {
+            container.innerHTML = '<div class="loading">无匹配学科</div>';
+            return;
+        }
+        container.innerHTML = data.results.map(s => `
+            <a href="/subjects/${s.id}/" class="block bg-white rounded p-4 shadow-sm card-hover">
+                <div class="font-semibold">${s.name} <span class="text-gray-400 text-sm">(${s.code})</span></div>
+                <div class="text-sm text-gray-500 mt-1">
+                    ${s.category_name || '-'}
+                    <span class="ml-2 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">${s.level_display || s.level}</span>
+                </div>
+            </a>
+        `).join('');
+    } catch (error) {
+        document.getElementById('subject-results').innerHTML = '<div class="loading">加载失败</div>';
+    }
+}
+
+async function searchMajors() {
+    if (!keyword) {
+        document.getElementById('major-results').innerHTML = '';
+        return;
+    }
+    try {
+        const data = await apiRequest(`/api/majors/?search=${encodeURIComponent(keyword)}&page_size=10`);
         const container = document.getElementById('major-results');
         if (data.results.length === 0) {
             container.innerHTML = '<div class="loading">无匹配专业</div>';
             return;
         }
-        container.innerHTML = data.results.map(m => `
+        container.innerHTML = data.results.map(m => {
+            let tags = '';
+            if (m.exam_type_display && m.exam_type !== 'unified') {
+                tags += `<span class="ml-1 px-1 py-0.5 text-xs bg-orange-100 text-orange-700 rounded">${m.exam_type_display}</span>`;
+            }
+            return `
             <a href="/majors/${m.id}/" class="block bg-white rounded p-4 shadow-sm card-hover">
-                <div class="font-semibold">${m.name} <span class="text-sm text-gray-400">(${m.code})</span></div>
+                <div class="font-semibold">${m.name} <span class="text-gray-400 text-sm">(${m.code})</span>${tags}</div>
                 <div class="text-sm text-gray-500 mt-1">${m.school_name} · ${m.college_name}</div>
             </a>
-        `).join('');
+            `;
+        }).join('');
     } catch (error) {
         document.getElementById('major-results').innerHTML = '<div class="loading">加载失败</div>';
     }
@@ -77,9 +130,11 @@ async function searchMajors() {
 
 if (keyword) {
     searchSchools();
+    searchSubjects();
     searchMajors();
 } else {
     document.getElementById('school-results').innerHTML = '<div class="loading">请输入搜索词</div>';
+    document.getElementById('subject-results').innerHTML = '';
     document.getElementById('major-results').innerHTML = '';
 }
 </script>
